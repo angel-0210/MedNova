@@ -112,6 +112,7 @@ CREATE TABLE public.devices (
   device_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   hospital_id UUID NOT NULL REFERENCES public.hospitals(hospital_id) ON DELETE CASCADE,
   mac_address TEXT NOT NULL UNIQUE,
+  connection_code VARCHAR(5) NOT NULL UNIQUE,
   firmware_version TEXT,
   battery_level INTEGER CHECK (battery_level >= 0 AND battery_level <= 100),
   status public.device_status NOT NULL,
@@ -223,6 +224,7 @@ CREATE INDEX IF NOT EXISTS patients_assigned_nurse_id_idx ON public.patients (as
 -- Devices
 CREATE INDEX IF NOT EXISTS devices_hospital_id_idx ON public.devices (hospital_id);
 CREATE INDEX IF NOT EXISTS devices_status_idx ON public.devices (status);
+CREATE INDEX IF NOT EXISTS devices_connection_code_idx ON public.devices (connection_code);
 
 -- Device Assignments
 CREATE INDEX IF NOT EXISTS device_assignments_hospital_id_idx ON public.device_assignments (hospital_id);

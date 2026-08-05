@@ -93,6 +93,7 @@ class Device(Base):
     device_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     hospital_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("hospitals.hospital_id", ondelete="CASCADE"), nullable=False)
     mac_address: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    connection_code: Mapped[str] = mapped_column(String(5), unique=True, nullable=False)
     firmware_version: Mapped[Optional[str]] = mapped_column(String)
     battery_level: Mapped[Optional[int]] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String, nullable=False)  # online, offline, maintenance, error

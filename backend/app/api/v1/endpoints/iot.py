@@ -32,16 +32,16 @@ async def ingest_readings(
     prediction_repo = AIPredictionRepository(db)
     
     # 1. Verify Device
-    device = await device_repo.get_by_id(payload.device_id)
+    device = await device_repo.get_by_connection_code(payload.connection_code)
     if not device:
-        logger.warn("Telemetry ingestion rejected: Device not registered", device_id=str(payload.device_id))
+        logger.warn("Telemetry ingestion rejected: Device with connection code not registered", connection_code=payload.connection_code)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device {payload.device_id} not registered"
+            detail=f"Device with connection code {payload.connection_code} not registered"
         )
         
     if device.status == "maintenance":
-        logger.info("Telemetry received for device under maintenance", device_id=str(payload.device_id))
+        logger.info("Telemetry received for device under maintenance", device_id=str(device.device_id))
 
     # Update device last ping and status
     device.last_ping = payload.timestamp
@@ -50,12 +50,12 @@ async def ingest_readings(
     await db.flush()
 
     # 2. Find Active Patient Assignment
-    assignment = await assignment_repo.get_active_by_device(payload.device_id)
+    assignment = await assignment_repo.get_active_by_device(device.device_id)
     if not assignment:
-        logger.warn("Telemetry ingestion rejected: No active patient assignment", device_id=str(payload.device_id))
+        logger.warn("Telemetry ingestion rejected: No active patient assignment", device_id=str(device.device_id))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Device {payload.device_id} is not currently assigned to any active patient"
+            detail=f"Device with connection code {payload.connection_code} is not currently assigned to any active patient"
         )
 
     # 3. Store Sensor Reading

@@ -49,6 +49,11 @@ class DeviceRepository(BaseRepository[Device]):
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_connection_code(self, connection_code: str) -> Optional[Device]:
+        stmt = select(Device).where(Device.connection_code == connection_code)
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
 
 class DeviceAssignmentRepository(BaseRepository[DeviceAssignment]):
     def __init__(self, db: AsyncSession):

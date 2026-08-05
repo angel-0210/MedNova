@@ -127,6 +127,7 @@ class PatientResponse(PatientBase):
 # =========================================================================
 class DeviceBase(BaseModel):
     mac_address: str = Field(...)
+    connection_code: str = Field(..., min_length=5, max_length=5, pattern="^[0-9]{5}$", description="5-digit precompiled device connection code")
     firmware_version: Optional[str] = None
     battery_level: Optional[int] = Field(None, ge=0, le=100)
     status: str = Field(..., pattern="^(online|offline|maintenance|error)$")
@@ -199,7 +200,7 @@ class SensorReadingCreate(SensorReadingBase):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class IotIngestPayload(SensorReadingBase):
-    device_id: uuid.UUID
+    connection_code: str = Field(..., min_length=5, max_length=5, pattern="^[0-9]{5}$", description="5-digit precompiled device connection code")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class SensorReadingResponse(SensorReadingBase):

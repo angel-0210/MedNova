@@ -88,7 +88,7 @@ async def test_auth_me_endpoint():
 
 
 @pytest.mark.asyncio
-@patch("app.database.repositories.entities.DeviceRepository.get_by_id")
+@patch("app.database.repositories.entities.DeviceRepository.get_by_connection_code")
 @patch("app.database.repositories.entities.DeviceAssignmentRepository.get_active_by_device")
 @patch("app.database.repositories.entities.SensorReadingRepository.create")
 @patch("app.database.repositories.entities.AIPredictionRepository.create")
@@ -116,6 +116,7 @@ async def test_iot_ingestion_pipeline(
         device_id=device_id,
         hospital_id=mock_hospital_id,
         mac_address="AA:BB:CC:DD:EE:FF",
+        connection_code="58392",
         status="online"
     )
     mock_get_device.return_value = mock_device
@@ -145,7 +146,7 @@ async def test_iot_ingestion_pipeline(
 
     # 2. Call endpoint
     payload = {
-        "device_id": str(device_id),
+        "connection_code": "58392",
         "timestamp": datetime.utcnow().isoformat(),
         "spo2": 96.0,
         "heart_rate": 72.0,
@@ -165,7 +166,7 @@ async def test_iot_ingestion_pipeline(
     assert data["heart_rate"] == 72.0
     
     # Verify mock calls
-    mock_get_device.assert_called_once_with(device_id)
+    mock_get_device.assert_called_once_with("58392")
     mock_get_assignment.assert_called_once_with(device_id)
     mock_create_reading.assert_called_once()
     mock_create_prediction.assert_called_once()
@@ -174,3 +175,4 @@ async def test_iot_ingestion_pipeline(
 
     # Clean overrides
     app.dependency_overrides.clear()
+
