@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
 from typing import List, Union
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, Field
+# pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 
 # Load .env file

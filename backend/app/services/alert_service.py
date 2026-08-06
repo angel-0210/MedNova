@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import logger
 from app.database.models import AIPrediction, Alert, Patient
@@ -52,6 +53,7 @@ class AlertService:
         # Check cooldown period (5 minutes) for recently resolved/acknowledged alerts of the same type
         cooldown_limit = datetime.utcnow() - timedelta(minutes=5)
         # Query latest alert of this type to see if it occurred within the cooldown limit
+        # pyrefly: ignore [missing-import]
         from sqlalchemy import select, and_, desc
         stmt = select(Alert).where(
             and_(

@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import numpy as np
 import os
 import uuid
@@ -8,11 +9,13 @@ from app.database.models import SensorReading
 
 try:
     # Try importing tflite_runtime
+    # pyrefly: ignore [missing-import]
     import tflite_runtime.interpreter as tflite
     TFLITE_AVAILABLE = True
 except ImportError:
     try:
         # Try importing full tensorflow as a backup
+        # pyrefly: ignore [missing-import]
         import tensorflow.lite as tflite
         TFLITE_AVAILABLE = True
     except ImportError:
@@ -51,16 +54,13 @@ class AIService:
         # Extract features
         spo2 = float(reading.spo2)
         heart_rate = float(reading.heart_rate)
-        pressure = float(reading.pressure)
         temperature = float(reading.temperature)
-        airflow = float(reading.airflow)
-        respiratory_rate = float(reading.respiratory_rate)
 
         # 1. TFLite Inference
         if self.interpreter is not None:
             try:
-                # Preprocess input (expects a 2D float32 array: [[spo2, hr, pressure, temp, airflow, rr]])
-                input_data = np.array([[spo2, heart_rate, pressure, temperature, airflow, respiratory_rate]], dtype=np.float32)
+                # Preprocess input (expects a 2D float32 array: [[spo2, hr, temp]])
+                input_data = np.array([[spo2, heart_rate, temperature]], dtype=np.float32)
                 
                 self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
                 self.interpreter.invoke()
@@ -73,7 +73,7 @@ class AIService:
                 risk_score = int(risk_prob * 100)
                 confidence = float(output_data[1]) if len(output_data) > 1 else 0.85
                 
-                recommendation = self._generate_recommendation(risk_score, spo2, heart_rate, pressure)
+                recommendation = self._generate_recommendation(risk_score, spo2, heart_rate)
                 inference_time = (time.perf_counter() - start_time) * 1000
                 logger.info("TFLite inference completed", risk_score=risk_score, confidence=confidence, inference_time_ms=inference_time)
                 return risk_score, confidence, recommendation, self.model_version
@@ -82,15 +82,15 @@ class AIService:
                 logger.warn("TFLite inference failed, falling back to heuristics", error=str(e))
 
         # 2. Heuristic fallback (High-quality rule-based clinical engine)
-        risk_score, confidence = self._calculate_heuristics(spo2, heart_rate, pressure, temperature, airflow, respiratory_rate)
-        recommendation = self._generate_recommendation(risk_score, spo2, heart_rate, pressure)
+        risk_score, confidence = self._calculate_heuristics(spo2, heart_rate, temperature)
+        recommendation = self._generate_recommendation(risk_score, spo2, heart_rate)
         
         inference_time = (time.perf_counter() - start_time) * 1000
         logger.info("Heuristic inference completed", risk_score=risk_score, confidence=confidence, inference_time_ms=inference_time)
         return risk_score, confidence, recommendation, "heuristic_estimator_v1.0"
 
     def _calculate_heuristics(
-        self, spo2: float, hr: float, press: float, temp: float, flow: float, rr: float
+        self, spo2: float, hr: float, temp: float
     ) -> Tuple[int, float]:
         """
         Implements a weighted physiological risk scoring algorithm (resembling National Early Warning Score - NEWS).
@@ -116,22 +116,6 @@ class AIService:
             score += 5
         factors += 1
 
-        # Respiratory Rate
-        if rr < 8 or rr > 35:
-            score += 25
-        elif rr < 10 or rr > 25:
-            score += 15
-        elif rr < 12 or rr > 20:
-            score += 5
-        factors += 1
-
-        # Pressure (Ventilator disconnect / High-pressure obstruction)
-        if press < 5 or press > 35:
-            score += 35
-        elif press < 10 or press > 25:
-            score += 15
-        factors += 1
-
         # Temperature
         if temp < 35.0 or temp > 39.0:
             score += 10
@@ -139,13 +123,8 @@ class AIService:
             score += 5
         factors += 1
 
-        # Airflow
-        if flow < 5 or flow > 35:
-            score += 15
-        factors += 1
-
         # Normalize score to 0 - 100
-        max_possible_score = 40 + 25 + 25 + 35 + 10 + 15  # 150
+        max_possible_score = 40 + 25 + 10  # 75
         risk_score = int((score / max_possible_score) * 100)
         risk_score = min(max(risk_score, 0), 100)
 
@@ -154,14 +133,14 @@ class AIService:
 
         return risk_score, confidence
 
-    def _generate_recommendation(self, risk_score: int, spo2: float, hr: float, press: float) -> str:
+    def _generate_recommendation(self, risk_score: int, spo2: float, hr: float) -> str:
         if risk_score >= 90:
-            return "CRITICAL: Immediate medical intervention required. Check ventilator connections, patient airway, and prepare for manual bagging."
+            return "CRITICAL: Immediate medical intervention required. Check patient status and prepare for manual bagging."
         elif risk_score >= 75:
-            return "HIGH: Urgent clinical review needed. Increase oxygen fraction if spO2 is low. Monitor pressure for airway blockage."
+            return "HIGH: Urgent clinical review needed. Increase oxygen fraction if spO2 is low."
         elif risk_score >= 50:
-            return f"MEDIUM: Monitor patient closely. Current spO2 is {spo2}%, Heart Rate is {hr} BPM, Ventilator Pressure is {press} cmH2O."
+            return f"MEDIUM: Monitor patient closely. Current spO2 is {spo2}%, Heart Rate is {hr} BPM."
         elif risk_score >= 25:
             return "LOW: Patient stable, continue routine monitoring."
         else:
-            return "NORMAL: All physiological parameters are within normal ventilator limits."
+            return "NORMAL: All physiological parameters are within normal limits."

@@ -1,5 +1,6 @@
 import uuid
 from typing import Optional
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import logger
 from app.database.models import AuditLog

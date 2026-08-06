@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import logger
 from app.core.security import get_current_user, RequireRole
@@ -263,6 +265,7 @@ async def remove_assignment(
         raise HTTPException(status_code=404, detail="Assignment not found")
         
     assignment.is_active = False
+    # pyrefly: ignore [deprecated]
     assignment.unassigned_at = datetime.utcnow()
     await db.flush()
     return assignment

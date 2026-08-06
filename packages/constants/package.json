@@ -1,0 +1,14 @@
+{
+  "name": "@mednova/constants",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests for constants\""
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

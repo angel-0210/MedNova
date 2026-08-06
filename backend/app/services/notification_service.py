@@ -28,7 +28,9 @@ class FCMNotificationProvider(BaseNotificationProvider):
         credentials_path = settings.FCM_CREDENTIALS_PATH
         if credentials_path and os.path.exists(credentials_path):
             try:
+                # pyrefly: ignore [missing-import]
                 import firebase_admin
+                # pyrefly: ignore [missing-import]
                 from firebase_admin import credentials
                 cred = credentials.Certificate(credentials_path)
                 firebase_admin.initialize_app(cred)
@@ -48,6 +50,7 @@ class FCMNotificationProvider(BaseNotificationProvider):
     ) -> bool:
         if self.initialized:
             try:
+                # pyrefly: ignore [missing-import]
                 from firebase_admin import messaging
                 message = messaging.Message(
                     notification=messaging.Notification(
@@ -88,6 +91,7 @@ class NotificationService:
     ) -> bool:
         return await self.provider.send_notification(token, title, body, data)
 
+    # pyrefly: ignore [bad-function-definition]
     async def broadcast_alert(self, user_tokens: list[str], title: str, body: str, data: dict = None):
         logger.info("Broadcasting push notifications to user tokens", count=len(user_tokens))
         success_count = 0

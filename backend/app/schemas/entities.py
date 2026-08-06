@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, date
 from typing import Optional, List
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, Field, EmailStr, field_validator
 import re
 
@@ -188,10 +189,7 @@ class DeviceAssignmentResponse(DeviceAssignmentBase):
 class SensorReadingBase(BaseModel):
     spo2: float = Field(..., ge=0, le=100, description="Oxygen Saturation Percentage")
     heart_rate: float = Field(..., ge=0, le=300, description="Heart Rate in BPM")
-    pressure: float = Field(..., ge=-50, le=150, description="Ventilator Airway Pressure")
     temperature: float = Field(..., ge=20, le=50, description="Patient Temperature in Celsius")
-    airflow: float = Field(..., ge=0, le=300, description="Airflow rate")
-    respiratory_rate: float = Field(..., ge=0, le=100, description="Respiratory Rate in breaths/min")
 
 class SensorReadingCreate(SensorReadingBase):
     device_id: uuid.UUID

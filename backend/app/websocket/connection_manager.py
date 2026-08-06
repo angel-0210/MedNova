@@ -1,5 +1,6 @@
 import uuid
 from typing import List, Dict
+# pyrefly: ignore [missing-import]
 from fastapi import WebSocket
 from app.core.logging import logger
 

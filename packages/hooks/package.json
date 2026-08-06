@@ -1,0 +1,21 @@
+{
+  "name": "@mednova/hooks",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests for hooks\""
+  },
+  "dependencies": {
+    "@mednova/types": "^1.0.0",
+    "@mednova/api": "^1.0.0",
+    "@tanstack/react-query": "^5.28.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.8.3"
+  }
+}

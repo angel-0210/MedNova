@@ -1,11 +1,14 @@
 import uuid
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
+# pyrefly: ignore [missing-import, missing-module-attribute]
 from supabase import create_client, Client
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.security import get_current_user
-from app.core.exceptions import UnauthorizedException, InvalidCredentialsException, ConflictException, EntityNotFoundException
+from app.core.exceptions import UnauthorizedException, InvalidCredentialsException, ConflictException, EntityNotFoundException, PermissionDeniedException
 from app.database.session import get_db
 from app.database.models import User, Hospital
 from app.database.repositories.entities import UserRepository, HospitalRepository

@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime, date
 from typing import List, Optional
+# pyrefly: ignore [missing-import]
 from sqlalchemy import Table, Column, String, Integer, Numeric, Boolean, DateTime, Date, ForeignKey, Text, BigInteger
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+# pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.postgresql import UUID
 
 class Base(DeclarativeBase):
@@ -134,10 +137,7 @@ class SensorReading(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     spo2: Mapped[Optional[float]] = mapped_column(Numeric)
     heart_rate: Mapped[Optional[float]] = mapped_column(Numeric)
-    pressure: Mapped[Optional[float]] = mapped_column(Numeric)
     temperature: Mapped[Optional[float]] = mapped_column(Numeric)
-    airflow: Mapped[Optional[float]] = mapped_column(Numeric)
-    respiratory_rate: Mapped[Optional[float]] = mapped_column(Numeric)
 
     # Relationships
     patient: Mapped["Patient"] = relationship(back_populates="sensor_readings")

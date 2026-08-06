@@ -1,7 +1,10 @@
+# pyrefly: ignore [missing-import]
 import pytest
 import uuid
 from datetime import datetime
+# pyrefly: ignore [missing-import]
 from fastapi.testclient import TestClient
+# pyrefly: ignore [missing-import]
 from httpx import AsyncClient
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -136,10 +139,7 @@ async def test_iot_ingestion_pipeline(
         timestamp=datetime.utcnow(),
         spo2=96.0,
         heart_rate=72.0,
-        pressure=15.0,
-        temperature=36.8,
-        airflow=15.0,
-        respiratory_rate=16.0
+        temperature=36.8
     )
     mock_create_reading.return_value = mock_reading
     mock_create_prediction.return_value = AIPrediction(prediction_id=uuid.uuid4(), risk_score=10, risk_level="normal")
@@ -150,10 +150,7 @@ async def test_iot_ingestion_pipeline(
         "timestamp": datetime.utcnow().isoformat(),
         "spo2": 96.0,
         "heart_rate": 72.0,
-        "pressure": 15.0,
-        "temperature": 36.8,
-        "airflow": 15.0,
-        "respiratory_rate": 16.0
+        "temperature": 36.8
     }
 
     async with AsyncClient(app=app, base_url="http://test") as ac:

@@ -1,9 +1,14 @@
+# pyrefly: ignore [missing-import]
 import httpx
 import uuid
 from typing import List, Optional, Dict, Any
+# pyrefly: ignore [missing-import]
 from fastapi import Depends, Header, HTTPException, status
+# pyrefly: ignore [missing-import]
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# pyrefly: ignore [missing-import, missing-source-for-stubs]
 from jose import jwt
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import logger
@@ -99,8 +104,10 @@ async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depend
             hospital_id=payload.get("user_metadata", {}).get("hospital_id"),
             exp=payload.get("exp")
         )
+    # pyrefly: ignore [missing-attribute]
     except jwt.ExpiredSignatureError:
         raise UnauthorizedException("Token has expired", "TOKEN_EXPIRED")
+    # pyrefly: ignore [missing-attribute]
     except jwt.JWTError as e:
         logger.warn("JWT Verification failed", error=str(e))
         raise UnauthorizedException(f"Invalid authentication token: {str(e)}", "INVALID_TOKEN")

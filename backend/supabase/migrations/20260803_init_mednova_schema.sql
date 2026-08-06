@@ -143,10 +143,7 @@ CREATE TABLE public.sensor_readings (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
   spo2 NUMERIC CHECK (spo2 >= 0 AND spo2 <= 100),
   heart_rate NUMERIC CHECK (heart_rate >= 0 AND heart_rate <= 300),
-  pressure NUMERIC CHECK (pressure >= -50 AND pressure <= 150),
-  temperature NUMERIC CHECK (temperature >= 20 AND temperature <= 50),
-  airflow NUMERIC CHECK (airflow >= 0 AND airflow <= 300),
-  respiratory_rate NUMERIC CHECK (respiratory_rate >= 0 AND respiratory_rate <= 100)
+  temperature NUMERIC CHECK (temperature >= 20 AND temperature <= 50)
 );
 
 -- AI PREDICTIONS

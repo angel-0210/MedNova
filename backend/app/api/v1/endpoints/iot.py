@@ -1,5 +1,7 @@
 import uuid
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
 from app.database.models import SensorReading, AIPrediction
@@ -66,10 +68,7 @@ async def ingest_readings(
         timestamp=payload.timestamp,
         spo2=payload.spo2,
         heart_rate=payload.heart_rate,
-        pressure=payload.pressure,
-        temperature=payload.temperature,
-        airflow=payload.airflow,
-        respiratory_rate=payload.respiratory_rate
+        temperature=payload.temperature
     )
     
     saved_reading = await reading_repo.create(reading)
@@ -108,10 +107,7 @@ async def ingest_readings(
                 "timestamp": saved_reading.timestamp.isoformat(),
                 "spo2": float(saved_reading.spo2),
                 "heart_rate": float(saved_reading.heart_rate),
-                "pressure": float(saved_reading.pressure),
                 "temperature": float(saved_reading.temperature),
-                "airflow": float(saved_reading.airflow),
-                "respiratory_rate": float(saved_reading.respiratory_rate),
                 "prediction": {
                     "risk_score": risk_score,
                     "risk_level": saved_prediction.risk_level,
