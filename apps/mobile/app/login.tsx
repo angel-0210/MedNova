@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput,
+  StyleSheet, TextInput,
   TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator,
+  Platform, ScrollView, ActivityIndicator, Text, View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { Activity, Mail, Lock } from 'lucide-react-native';
 import { parseAPIError } from '@mednova/utils';
 import { router } from 'expo-router';
+import { theme } from '../constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -33,122 +35,129 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Activity size={32} color="#66fcf1" strokeWidth={2.5} />
-          </View>
-          <Text style={styles.title}>MedNova</Text>
-          <Text style={styles.subtitle}>Ventilator Telemetry Portal</Text>
-        </View>
-
-        {/* ── Form ────────────────────────────────────────────────────────── */}
-        <View style={styles.form}>
-          {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex1}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* ── Header ──────────────────────────────────────────────────────── */}
+          <View style={styles.header}>
+            <View style={[styles.logoContainer, { backgroundColor: 'rgba(0,10,36,0.05)', borderColor: theme.colors.outlineVariant }]}>
+              <Activity size={32} color={theme.colors.primary} strokeWidth={2.5} />
             </View>
-          ) : null}
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Hospital Email</Text>
-            <View style={styles.inputRow}>
-              <Mail size={16} color="#5a5c5e" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="doctor@hospital.org"
-                placeholderTextColor="rgba(255,255,255,0.25)"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
+            <Text style={[theme.typography.headlineLg, { color: theme.colors.primary, fontWeight: '800', textAlign: 'center' }]}>
+              MedNova
+            </Text>
+            <Text style={[theme.typography.bodySm, { color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 4 }]}>
+              Ventilator Telemetry Portal
+            </Text>
           </View>
 
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Security Password</Text>
-              <TouchableOpacity onPress={() => router.push('/forgot-password')} activeOpacity={0.7}>
-                <Text style={styles.forgotLink}>Forgot password?</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.inputRow}>
-              <Lock size={16} color="#5a5c5e" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor="rgba(255,255,255,0.25)"
-                secureTextEntry
-                autoCapitalize="none"
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-          </View>
+          {/* ── Form ────────────────────────────────────────────────────────── */}
+          <View style={styles.form}>
+            {error ? (
+              <View style={[styles.errorBox, { backgroundColor: theme.colors.errorContainer, borderColor: theme.colors.error }]}>
+                <Text style={[theme.typography.bodySm, { color: theme.colors.onErrorContainer, textAlign: 'center', fontWeight: '600' }]}>
+                  {error}
+                </Text>
+              </View>
+            ) : null}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color="#0b0c10" />
-            ) : (
-              <Text style={styles.buttonText}>Authenticate Session</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <View style={styles.inputGroup}>
+              <Text style={[theme.typography.labelCaps, { color: theme.colors.onSurfaceVariant, marginBottom: 8 }]}>
+                Hospital Email
+              </Text>
+              <View style={[styles.inputRow, { backgroundColor: theme.colors.surfaceContainerHighest, borderColor: theme.colors.outlineVariant }]}>
+                <Mail size={16} color={theme.colors.outline} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, theme.typography.bodyMd, { color: theme.colors.onSurface }]}
+                  placeholder="doctor@hospital.org"
+                  placeholderTextColor={theme.colors.outline}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[theme.typography.labelCaps, { color: theme.colors.onSurfaceVariant }]}>
+                  Security Password
+                </Text>
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} activeOpacity={0.7}>
+                  <Text style={[theme.typography.bodySm, { color: theme.colors.secondaryContainer, fontWeight: '700' }]}>
+                    Forgot password?
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.inputRow, { backgroundColor: theme.colors.surfaceContainerHighest, borderColor: theme.colors.outlineVariant }]}>
+                <Lock size={16} color={theme.colors.outline} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, theme.typography.bodyMd, { color: theme.colors.onSurface }]}
+                  placeholder="••••••••"
+                  placeholderTextColor={theme.colors.outline}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.colors.primary }, loading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color={theme.colors.onPrimary} />
+              ) : (
+                <Text style={[theme.typography.bodyMd, { color: theme.colors.onPrimary, fontWeight: '700' }]}>
+                  Authenticate Session
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0b0c10' },
+  container: { flex: 1 },
+  flex1: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
 
   header: { alignItems: 'center', marginBottom: 40 },
   logoContainer: {
-    height: 68, width: 68, backgroundColor: 'rgba(102,252,241,0.1)',
-    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(102,252,241,0.2)',
+    height: 68, width: 68,
+    borderRadius: 18, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', marginBottom: 18,
   },
-  title: { fontSize: 30, fontWeight: '800', color: '#ffffff', textAlign: 'center' },
-  subtitle: { fontSize: 13, color: '#5a5c5e', textAlign: 'center', marginTop: 6 },
 
   form: {},
   errorBox: {
-    backgroundColor: 'rgba(217,4,41,0.12)', borderColor: 'rgba(217,4,41,0.25)',
     borderWidth: 1, padding: 12, borderRadius: 12, marginBottom: 16,
   },
-  errorText: { color: '#d90429', fontSize: 12, textAlign: 'center', fontWeight: '600' },
 
   inputGroup: { marginBottom: 20 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  label: { fontSize: 10, fontWeight: '700', color: '#5a5c5e', textTransform: 'uppercase', letterSpacing: 1 },
-  forgotLink: { fontSize: 11, color: '#66fcf1', fontWeight: '600' },
 
   inputRow: {
-    backgroundColor: '#1a2130', borderColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1, borderRadius: 12,
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
   },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, color: '#ffffff', fontSize: 14, paddingVertical: 14 },
+  input: { flex: 1, paddingVertical: 14 },
 
   button: {
-    backgroundColor: '#66fcf1', borderRadius: 12, paddingVertical: 15,
+    borderRadius: 12, paddingVertical: 15,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
-    shadowColor: '#66fcf1', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 3,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#0b0c10', fontSize: 14, fontWeight: '700' },
 });

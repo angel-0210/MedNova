@@ -5,6 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, String
 from app.core.logging import logger
 from app.core.security import get_current_user, RequireRole
 from app.database.session import get_db
@@ -146,6 +147,28 @@ async def get_user_profile(
         raise HTTPException(status_code=404, detail="User profile not found")
     return user
 
+@user_router.patch("/{user_id}", response_model=UserResponse)
+async def update_user_profile(
+    user_id: uuid.UUID,
+    payload: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if current_user.role != "admin" and current_user.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this profile")
+
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_id, hospital_id=current_user.hospital_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    for field, val in payload.model_dump(exclude_unset=True).items():
+        setattr(user, field, val)
+
+    db.add(user)
+    await db.flush()
+    return user
+
 
 # =========================================================================
 # PATIENTS ENDPOINTS (Doctor / Nurse)
@@ -167,11 +190,26 @@ async def create_patient(
 
 @patient_router.get("", response_model=List[PatientResponse])
 async def list_patients(
+    search: Optional[str] = Query(None),
+    ventilator_status: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    patient_repo = PatientRepository(db)
-    return await patient_repo.list_all(hospital_id=current_user.hospital_id)
+    stmt = select(Patient).where(Patient.hospital_id == current_user.hospital_id)
+    if ventilator_status:
+        stmt = stmt.where(Patient.ventilator_status == ventilator_status)
+    if search:
+        search_lower = f"%{search.lower()}%"
+        stmt = stmt.where(
+            func.lower(Patient.name).like(search_lower) |
+            func.lower(Patient.bed_number).like(search_lower) |
+            func.cast(Patient.patient_id, String).like(search_lower)
+        )
+    stmt = stmt.offset(skip).limit(limit)
+    res = await db.execute(stmt)
+    return res.scalars().all()
 
 @patient_router.get("/{patient_id}", response_model=PatientResponse)
 async def get_patient(

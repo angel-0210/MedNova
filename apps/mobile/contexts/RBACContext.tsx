@@ -13,6 +13,10 @@ export interface RBACPermissions {
   // ── Navigation visibility ──────────────────────────────────────────────────
   /** Whether the Devices tab is visible (hidden for attendant) */
   canViewDevicesTab: boolean;
+  /** Whether the Predictions tab is visible (doctor only) */
+  canViewPredictionsTab: boolean;
+  /** Whether the Reports tab is visible (doctor only) */
+  canViewReportsTab: boolean;
 
   // ── Patient actions ────────────────────────────────────────────────────────
   /** Create / edit patient records */
@@ -65,7 +69,9 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role,
 
     // Navigation
-    canViewDevicesTab: isClinician,
+    canViewDevicesTab: isClinician && role !== 'doctor',
+    canViewPredictionsTab: role === 'doctor',
+    canViewReportsTab: role === 'doctor',
 
     // Patients
     canEditPatients: isClinician,
@@ -76,14 +82,15 @@ export const RBACProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Devices
     canRegisterDevices: role === 'admin',
-    canPairDevices: isClinician,
-    canUnpairDevices: isClinician,
+    canPairDevices: isClinician && role !== 'doctor',
+    canUnpairDevices: isClinician && role !== 'doctor',
 
     // Data
     canViewVitals: true,
     canViewReports: isClinician,
     canViewAuditLogs: role === 'admin',
   };
+
 
   return <RBACContext.Provider value={permissions}>{children}</RBACContext.Provider>;
 };

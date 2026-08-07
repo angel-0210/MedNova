@@ -1,23 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, Switch, ScrollView } from 'react-native';
-import { Activity, Bot, AlertTriangle, Wifi, Search, Sliders, ChevronDown, Smartphone, MessageSquare, Check, Bell } from 'lucide-react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Switch, ScrollView, useWindowDimensions } from 'react-native';
+import { Activity, Bot, AlertTriangle, Wifi, Search, Sliders, ChevronDown, Smartphone, MessageSquare, Check, Bell, Activity as ActiveIcon } from 'lucide-react-native';
 import { useAlertStore, usePatientStore } from '../stores';
 import { Card } from '../components/common/Card';
 import { useTheme } from '../theme/ThemeProvider';
-import { useRoleAccess } from '../hooks/useRoleAccess';
 import { Alert as DBAlert } from '../types';
 
-const { width } = Dimensions.get('window');
-
-export const Alerts: React.FC = () => {
+export const Alerts: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, typography } = useTheme();
   const { activeAlerts, fetchActiveAlerts, acknowledge, resolve } = useAlertStore();
   const { patients, fetchPatients } = usePatientStore();
-  const { canAcknowledgeAlerts, canResolveAlerts } = useRoleAccess();
 
-  // Unified segment control: 'active' for Active Alerts (Image 4), 'center' for Notifications Center (Image 7)
   const [activeSegment, setActiveSegment] = useState<'active' | 'center'>('active');
   const [priorityOnly, setPriorityOnly] = useState(false);
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   useEffect(() => {
     fetchActiveAlerts();
@@ -41,36 +38,39 @@ export const Alerts: React.FC = () => {
     if (type === 'critical') {
       return {
         badge: 'Critical',
-        badgeBg: '#FFA515',
-        icon: <Activity size={18} color="#FFA515" />,
+        badgeBg: colors.statusCritical,
+        badgeTextColor: '#FFFFFF',
+        icon: <Activity size={18} color="#FFFFFF" />,
         boxTitle: 'Ventilator Pressure Alert - Bed 4',
         timestamp: 'Just now',
-        leftAccent: '#FCA311'
+        leftAccent: colors.statusCritical
       };
     } else if (msg.includes('sepsis') || type === 'high') {
       return {
         badge: 'AI Predictive',
-        badgeBg: '#FFA515',
-        icon: <Bot size={18} color="#FFA515" />,
+        badgeBg: colors.statusCritical,
+        badgeTextColor: '#FFFFFF',
+        icon: <Bot size={18} color="#FFFFFF" />,
         boxTitle: 'High Risk: Sepsis Onset',
         timestamp: '2m ago',
-        leftAccent: '#FFA515'
+        leftAccent: colors.statusCritical
       };
     } else if (msg.includes('fluid') || type === 'medium') {
       return {
         badge: 'Warning',
-        badgeBg: '#E2E8F0',
-        badgeTextColor: '#475569',
-        icon: <AlertTriangle size={18} color="#FFA515" />,
+        badgeBg: colors.surfaceContainer,
+        badgeTextColor: colors.statusStable,
+        icon: <AlertTriangle size={18} color={colors.statusStable} />,
         boxTitle: 'IV Fluid Low',
         timestamp: '15m ago',
-        leftAccent: '#FFA515'
+        leftAccent: colors.secondaryContainer
       };
     } else {
       return {
         badge: 'Routine',
-        badgeBg: colors.primary,
-        icon: <Wifi size={18} color="#64748B" />,
+        badgeBg: colors.surfaceContainerHighest,
+        badgeTextColor: colors.primary,
+        icon: <Wifi size={18} color={colors.outline} />,
         boxTitle: 'Telemetry Sensor Calibration',
         timestamp: '1h ago',
         leftAccent: colors.primary
@@ -78,7 +78,6 @@ export const Alerts: React.FC = () => {
     }
   };
 
-  // Render Item for Active Alerts View (Image 4)
   const renderAlertItem = ({ item }: { item: DBAlert }) => {
     const p = getPatientDetails(item.patient_id);
     const meta = getAlertMetadata(item);
@@ -96,19 +95,14 @@ export const Alerts: React.FC = () => {
             <View style={styles.badgeLabelRow}>
               <View style={[
                 styles.iconCircle,
-                item.alert_type === 'device' || item.alert_type === 'low'
-                  ? { backgroundColor: '#F1F5F9' }
-                  : { backgroundColor: 'rgba(255, 165, 21, 0.1)' }
+                { backgroundColor: meta.leftAccent + '1A' }
               ]}>
                 {meta.icon}
               </View>
               <Text style={[styles.bedTitleText, { color: colors.primary }]}>{p.bed}</Text>
 
               <View style={[styles.statusChip, { backgroundColor: meta.badgeBg }]}>
-                <Text style={[
-                  styles.statusChipText,
-                  meta.badgeTextColor ? { color: meta.badgeTextColor } : null
-                ]}>
+                <Text style={[styles.statusChipText, { color: meta.badgeTextColor }]}>
                   {meta.badge}
                 </Text>
               </View>
@@ -116,7 +110,7 @@ export const Alerts: React.FC = () => {
 
             <Text style={[
               styles.timestampText,
-              meta.timestamp === 'Just now' ? { color: '#FFA515', fontWeight: '700' } : null
+              meta.timestamp === 'Just now' ? { color: colors.statusCritical, fontWeight: '700' } : null
             ]}>
               {meta.timestamp}
             </Text>
@@ -163,7 +157,6 @@ export const Alerts: React.FC = () => {
     );
   };
 
-  // Group Notification Items for Notifications Center View (Image 7)
   const notificationGroups = [
     {
       title: 'TODAY',
@@ -174,9 +167,9 @@ export const Alerts: React.FC = () => {
           title: 'Ventilator Pressure Alert - Bed 4',
           time: '10:42 AM',
           message: 'High airway pressure detected. AI insight suggests possible secretion buildup. Please review patient status immediately.',
-          icon: <AlertTriangle size={18} color="#FFA515" />,
-          iconBg: 'rgba(255, 165, 21, 0.1)',
-          leftAccent: '#FFA515',
+          icon: <AlertTriangle size={18} color={colors.statusCritical} />,
+          iconBg: colors.statusCritical + '1A',
+          leftAccent: colors.statusCritical,
           actions: (
             <View style={[styles.cardActionsRow, { marginTop: 12 }]}>
               <TouchableOpacity style={[styles.actionBtnPrimaryCompact, { backgroundColor: colors.primary }]} activeOpacity={0.8}>
@@ -194,8 +187,8 @@ export const Alerts: React.FC = () => {
           title: 'System Update Scheduled',
           time: '08:00 AM',
           message: 'MedNova v2.4.1 will be deployed at 02:00 AM tomorrow. Brief downtime (approx 5 mins) expected. Read release notes for details.',
-          icon: <Smartphone size={18} color="#64748B" />,
-          iconBg: '#F1F5F9',
+          icon: <Smartphone size={18} color={colors.outline} />,
+          iconBg: colors.surfaceContainerHighest,
           leftAccent: null,
           actions: null
         }
@@ -210,8 +203,8 @@ export const Alerts: React.FC = () => {
           title: 'Shift Handoff Notes Available',
           time: 'Yesterday, 7:00 PM',
           message: 'Dr. Patel has uploaded the evening shift handoff notes for Ward B.',
-          icon: <MessageSquare size={18} color="#64748B" />,
-          iconBg: '#F1F5F9',
+          icon: <MessageSquare size={18} color={colors.outline} />,
+          iconBg: colors.surfaceContainerHighest,
           leftAccent: null,
           actions: null
         }
@@ -226,8 +219,8 @@ export const Alerts: React.FC = () => {
           title: 'Security Patch Applied',
           time: 'Oct 24',
           message: 'Mandatory security patch applied successfully across all monitoring nodes.',
-          icon: <Check size={16} color="#64748B" />,
-          iconBg: '#F1F5F9',
+          icon: <Check size={16} color={colors.outline} />,
+          iconBg: colors.surfaceContainerHighest,
           leftAccent: null,
           actions: null
         }
@@ -235,20 +228,24 @@ export const Alerts: React.FC = () => {
     }
   ];
 
-  return (
-    <View style={[styles.container, { backgroundColor: '#F8F9FB' }]}>
+  const alertsContent = (
+    <View style={styles.flex1}>
       {/* Top App Bar Header */}
-      <View style={styles.appBar}>
+      <View style={[styles.appBar, { backgroundColor: colors.surfaceGlass, borderBottomColor: colors.outlineVariant + '33' }]}>
         <View style={styles.appBarLeft}>
           <Image
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL9jzPGC__Q1EgdkL1-ZIK676SXnnFnAvqyKxxTaDt3OuaR30FBwty5DudtuLXrMzc1xgwTcq9n5LFUpOqswww-QRtVKF0_9N0jG0Cq37p0u_R-O3kWRGb-pdj6Cr0zg2vD0TAqf1yxqxJGc3Uzn4yuaj0JGEspmWaJBS7hrOfRxXxbYzXOHJRlipb4UgW5Q6jTuZ05AcJrMcvF8QBabo1tsYo_vg1Tryruo9LpXc_f3vToQabcDU_dg' }}
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: colors.outlineVariant }]}
           />
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>MedNova</Text>
+          <Text style={[typography.labelCaps, { color: colors.onSurface, fontWeight: 'bold' }]}>
+            Dr. Sarah Mitchell
+          </Text>
         </View>
-
+        <Text style={[typography.headlineLgMobile, { color: colors.primary, fontWeight: 'bold' }]}>
+          ICU Intel
+        </Text>
         <TouchableOpacity style={styles.appBarIconButton}>
-          <Search size={22} color={colors.primary} />
+          <Search size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -276,20 +273,22 @@ export const Alerts: React.FC = () => {
 
       {/* Active Alerts View */}
       {activeSegment === 'active' && (
-        <View style={{ flex: 1 }}>
-          <View style={styles.screenHeader}>
-            <Text style={[styles.screenTitleText, { color: colors.primary }]}>Active Alerts</Text>
-            <Text style={styles.screenSubtitleText}>Monitoring 12 critical beds</Text>
+        <View style={styles.flex1}>
+          <View style={[styles.screenHeader, isDesktop ? styles.desktopPaddingHeader : null]}>
+            <Text style={[typography.displayLg, { color: colors.primary, fontWeight: '700' }]}>Active Alerts</Text>
+            <Text style={[typography.bodySm, { color: colors.onSurfaceVariant, marginTop: 4, marginBottom: 16 }]}>
+              Monitoring 12 critical beds
+            </Text>
 
             <View style={styles.filtersRow}>
               <TouchableOpacity style={styles.filterSelectorBtn} activeOpacity={0.8}>
-                <Sliders size={15} color="#475569" style={styles.filterIconLeft} />
+                <Sliders size={15} color={colors.primary} style={styles.filterIconLeft} />
                 <Text style={styles.filterText}>All Alert Types</Text>
-                <ChevronDown size={15} color="#475569" style={styles.filterIconRight} />
+                <ChevronDown size={15} color={colors.primary} style={styles.filterIconRight} />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.filterSelectorBtn} activeOpacity={0.8}>
-                <Sliders size={15} color="#475569" style={styles.filterIconLeft} />
+                <Sliders size={15} color={colors.primary} style={styles.filterIconLeft} />
                 <Text style={styles.filterText}>Bed #</Text>
               </TouchableOpacity>
             </View>
@@ -298,12 +297,12 @@ export const Alerts: React.FC = () => {
           <FlatList
             data={activeAlerts}
             keyExtractor={(item) => item.alert_id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, isDesktop ? styles.desktopPaddingList : null]}
             renderItem={renderAlertItem}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={[typography.bodyMd, { color: '#94A3B8', fontWeight: '500' }]}>
+                <Text style={[typography.bodyMd, { color: colors.outline, fontWeight: '500' }]}>
                   No active clinical alerts at this time.
                 </Text>
               </View>
@@ -314,10 +313,10 @@ export const Alerts: React.FC = () => {
 
       {/* Notifications Center View */}
       {activeSegment === 'center' && (
-        <View style={{ flex: 1 }}>
-          <View style={[styles.screenHeader, styles.notificationHeaderRow]}>
+        <View style={styles.flex1}>
+          <View style={[styles.screenHeader, styles.notificationHeaderRow, isDesktop ? styles.desktopPaddingHeader : null]}>
             <View>
-              <Text style={[styles.screenTitleText, { color: colors.primary }]}>Notifications Center</Text>
+              <Text style={[typography.displayLg, { color: colors.primary, fontWeight: '700' }]}>Notifications Center</Text>
             </View>
             <View style={styles.switchContainer}>
               <Text style={styles.switchLabel}>Priority{"\n"}Only</Text>
@@ -330,7 +329,7 @@ export const Alerts: React.FC = () => {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.listContent, isDesktop ? styles.desktopPaddingList : null]} showsVerticalScrollIndicator={false}>
             {notificationGroups.map((group) => {
               // Filter based on Priority switch
               const filteredData = priorityOnly
@@ -385,37 +384,119 @@ export const Alerts: React.FC = () => {
       )}
     </View>
   );
+
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopContainer}>
+        {/* Desktop sidebar */}
+        <View style={[styles.desktopSidebar, { backgroundColor: colors.surface, borderRightColor: colors.outlineVariant + '33' }]}>
+          <TouchableOpacity 
+            style={styles.sidebarLink} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Dashboard')}
+          >
+            <ActiveIcon size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Dashboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.sidebarLink} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Patients')}
+          >
+            <ActiveIcon size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Patients
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.sidebarLink, styles.sidebarLinkActive, { backgroundColor: colors.secondaryContainer + '33' }]}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.activeIndicatorBar, { backgroundColor: colors.primary }]} />
+            <Bell size={20} color={colors.primary} />
+            <Text style={[typography.labelCaps, { color: colors.primary, fontSize: 9, marginTop: 4, fontWeight: 'bold' }]}>
+              Alerts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.sidebarLink, styles.sidebarLinkBottom]} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Search size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Settings
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.flex1}>{alertsContent}</View>
+      </View>
+    );
+  }
+
+  return alertsContent;
 };
 
 const styles = StyleSheet.create({
-  container: {
+  flex1: {
     flex: 1,
+  },
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  desktopSidebar: {
+    width: 96,
+    height: '100%',
+    alignItems: 'center',
+    paddingVertical: 32,
+    borderRightWidth: 1,
+  },
+  sidebarLink: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  sidebarLinkActive: {
+    position: 'relative',
+  },
+  activeIndicatorBar: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 4,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  sidebarLinkBottom: {
+    marginTop: 'auto',
+    marginBottom: 0,
   },
   appBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    height: 64,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    zIndex: 10,
   },
   appBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    marginRight: 12,
-    backgroundColor: '#E2E8F0',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   appBarIconButton: {
     padding: 6,
@@ -463,21 +544,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
+  desktopPaddingHeader: {
+    paddingHorizontal: 40,
+    paddingTop: 32,
+  },
   notificationHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  screenTitleText: {
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  screenSubtitleText: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
-    marginBottom: 16,
   },
   // Switch
   switchContainer: {
@@ -520,6 +594,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 110,
+  },
+  desktopPaddingList: {
+    paddingHorizontal: 40,
   },
   // Group Divider
   groupBlock: {
@@ -583,11 +660,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderLeftWidth: 5,
     borderLeftColor: 'transparent',
-    shadowColor: 'rgba(0, 10, 36, 0.05)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 2,
   },
   cardContent: {
     padding: 16,
@@ -621,7 +693,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   statusChipText: {
-    color: '#FFFFFF',
     fontSize: 10.5,
     fontWeight: '700',
   },

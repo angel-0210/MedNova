@@ -1,30 +1,84 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Switch, Alert,
+  TouchableOpacity, TextInput, Alert, ActivityIndicator, Image
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRBAC } from '../../../contexts/RBACContext';
+import { useUserProfileQuery, useUpdateUserProfileMutation } from '@mednova/hooks';
+import { apiClient } from '@mednova/api';
+import { useQuery } from '@tanstack/react-query';
 import {
-  User as UserIcon, LogOut, Bell, Volume2,
-  Shield, Info, ChevronRight, Moon,
+  User as UserIcon, LogOut, Shield, Info, ChevronRight,
+  Phone, Mail, BadgeCheck, Stethoscope, Settings
 } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { theme } from '../../../constants/theme';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
-  admin:     { label: 'Administrator',  color: '#fca311' },
-  doctor:    { label: 'Medical Doctor', color: '#66fcf1' },
-  nurse:     { label: 'Registered Nurse', color: '#2a9d8f' },
-  attendant: { label: 'Patient Attendant', color: '#5a5c5e' },
+  admin:     { label: 'Administrator',  color: theme.colors.statusCritical },
+  doctor:    { label: 'Medical Doctor', color: theme.colors.statusStable },
+  nurse:     { label: 'Registered Nurse', color: theme.colors.statusStable },
+  attendant: { label: 'Patient Attendant', color: theme.colors.outline },
 };
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const { role } = useRBAC();
 
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [criticalSound, setCriticalSound] = useState(true);
+  const userId = authUser?.user_id ?? '';
 
-  const roleInfo = ROLE_LABELS[role] ?? { label: role.toUpperCase(), color: '#66fcf1' };
+  // Queries & Mutations
+  const { data: userProfile, isLoading: loadingProfile } = useUserProfileQuery(userId);
+  const updateProfileMutation = useUpdateUserProfileMutation();
+
+  const { data: hospital } = useQuery({
+    queryKey: ['hospital', authUser?.hospital_id],
+    queryFn: async () => {
+      if (!authUser?.hospital_id) return null;
+      const res = await apiClient.get(`/api/v1/hospitals/${authUser.hospital_id}`);
+      return res.data;
+    },
+    enabled: !!authUser?.hospital_id,
+  });
+
+  // Local editing states
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+
+  const startEditing = () => {
+    setName(userProfile?.name ?? '');
+    setPhone(userProfile?.phone ?? '');
+    setDepartment(userProfile?.department ?? '');
+    setLicenseNumber(userProfile?.license_number ?? '');
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Name cannot be empty.');
+      return;
+    }
+    try {
+      await updateProfileMutation.mutateAsync({
+        userId,
+        data: {
+          name,
+          phone,
+          department,
+          license_number: licenseNumber
+        }
+      });
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to update profile.');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -37,185 +91,200 @@ export default function ProfileScreen() {
     );
   };
 
+  if (loadingProfile) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  const roleInfo = ROLE_LABELS[role] ?? { label: role.toUpperCase(), color: theme.colors.primary };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-      {/* ── Profile Card ───────────────────────────────────────────────────── */}
-      <View style={styles.profileCard}>
-        <View style={styles.avatarWrap}>
-          <UserIcon size={32} color="#66fcf1" strokeWidth={1.5} />
+        {/* ── Profile Header Card ────────────────────────────────────────────── */}
+        <View style={[styles.profileCard, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}>
+          <View style={[styles.avatarWrap, { backgroundColor: 'rgba(0,10,36,0.05)', borderColor: theme.colors.outlineVariant }]}>
+            {userProfile?.profile_picture ? (
+              <Image source={{ uri: userProfile.profile_picture }} style={styles.avatarImg} />
+            ) : (
+              <UserIcon size={32} color={theme.colors.primary} strokeWidth={1.5} />
+            )}
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={[styles.profileName, theme.typography.headlineLgMobile, { color: theme.colors.primary, fontWeight: '800' }]}>
+              {userProfile?.name ?? 'Dr. Clinician'}
+            </Text>
+            <View style={styles.roleRow}>
+              <View style={[styles.rolePill, { backgroundColor: roleInfo.color + '15' }]}>
+                <Text style={[styles.roleText, theme.typography.labelCaps, { color: roleInfo.color, fontSize: 9, fontWeight: '800' }]}>
+                  {roleInfo.label}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.profileEmail, theme.typography.bodySm, { color: theme.colors.onSurfaceVariant }]}>
+              {userProfile?.email ?? '—'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{user?.name ?? 'Clinical Staff'}</Text>
-          <View style={styles.roleRow}>
-            <View style={[styles.rolePill, { backgroundColor: roleInfo.color + '20' }]}>
-              <Text style={[styles.roleText, { color: roleInfo.color }]}>{roleInfo.label}</Text>
+
+        {/* ── Edit State Inputs / Info ────────────────────────────────────────── */}
+        {isEditing ? (
+          <View style={[styles.infoCard, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}>
+            <Text style={[styles.inputLabel, theme.typography.labelCaps, { color: theme.colors.outline }]}>Name</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Full Name" />
+
+            <Text style={[styles.inputLabel, theme.typography.labelCaps, { color: theme.colors.outline }]}>Phone Number</Text>
+            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Phone Number" keyboardType="phone-pad" />
+
+            <Text style={[styles.inputLabel, theme.typography.labelCaps, { color: theme.colors.outline }]}>Department</Text>
+            <TextInput style={styles.input} value={department} onChangeText={setDepartment} placeholder="Department" />
+
+            <Text style={[styles.inputLabel, theme.typography.labelCaps, { color: theme.colors.outline }]}>License Number</Text>
+            <TextInput style={styles.input} value={licenseNumber} onChangeText={setLicenseNumber} placeholder="License Number" />
+
+            <View style={styles.btnRow}>
+              <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setIsEditing(false)} activeOpacity={0.8}>
+                <Text style={[theme.typography.labelCaps, { color: theme.colors.outline }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.saveBtn, { backgroundColor: theme.colors.primary }]} onPress={handleSave} activeOpacity={0.8}>
+                <Text style={[theme.typography.labelCaps, { color: '#ffffff' }]}>Save Changes</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.profileEmail}>{user?.email ?? '—'}</Text>
-        </View>
-      </View>
-
-      {/* ── Permissions ────────────────────────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Your Access Level</Text>
-      <View style={styles.permCard}>
-        <PermRow icon={<Shield size={14} color="#66fcf1" />} label="Role" value={roleInfo.label} />
-        <Divider />
-        <PermRow icon={<Shield size={14} color="#2a9d8f" />} label="Hospital Scope" value={user?.hospital_id ? '✓ Scoped' : '—'} />
-      </View>
-
-      {/* ── Notification Settings ──────────────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Notifications</Text>
-      <View style={styles.card}>
-        <View style={styles.settingRow}>
-          <View style={styles.settingLeft}>
-            <Bell size={16} color="#66fcf1" />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Push Notifications</Text>
-              <Text style={styles.settingDesc}>Alert notifications for device & patient events</Text>
+        ) : (
+          <>
+            <Text style={[styles.sectionTitle, theme.typography.labelCaps, { color: theme.colors.onSurfaceVariant }]}>Professional Details</Text>
+            <View style={[styles.infoCard, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}>
+              <InfoRow icon={<BadgeCheck size={16} color={theme.colors.primary} />} label="License Number" value={userProfile?.license_number || 'Not Registered'} />
+              <Divider />
+              <InfoRow icon={<Stethoscope size={16} color={theme.colors.primary} />} label="Department" value={userProfile?.department || 'Not Configured'} />
+              <Divider />
+              <InfoRow icon={<Phone size={16} color={theme.colors.primary} />} label="Phone" value={userProfile?.phone || 'Not Configured'} />
+              <Divider />
+              <InfoRow icon={<Mail size={16} color={theme.colors.primary} />} label="Email" value={userProfile?.email || '—'} />
             </View>
-          </View>
-          <Switch
-            value={pushEnabled}
-            onValueChange={setPushEnabled}
-            trackColor={{ false: '#252b36', true: '#66fcf1' }}
-            thumbColor={pushEnabled ? '#0b0c10' : '#5a5c5e'}
-            ios_backgroundColor="#252b36"
-          />
-        </View>
-        <Divider />
-        <View style={styles.settingRow}>
-          <View style={styles.settingLeft}>
-            <Volume2 size={16} color={criticalSound ? '#d90429' : '#5a5c5e'} />
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>Critical Alert Sound</Text>
-              <Text style={styles.settingDesc}>Override silent mode for high-risk AI alerts</Text>
+
+            <Text style={[styles.sectionTitle, theme.typography.labelCaps, { color: theme.colors.onSurfaceVariant }]}>Hospital Scope</Text>
+            <View style={[styles.infoCard, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}>
+              <InfoRow icon={<Shield size={16} color={theme.colors.primary} />} label="Facility Name" value={hospital?.name || 'Loading facility...'} />
+              <Divider />
+              <InfoRow icon={<Shield size={16} color={theme.colors.primary} />} label="Facility Code" value={hospital?.hospital_code || '—'} />
             </View>
-          </View>
-          <Switch
-            value={criticalSound}
-            onValueChange={setCriticalSound}
-            trackColor={{ false: '#252b36', true: '#d90429' }}
-            thumbColor={criticalSound ? '#0b0c10' : '#5a5c5e'}
-            ios_backgroundColor="#252b36"
-          />
-        </View>
-      </View>
 
-      {/* ── App Info ───────────────────────────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Application</Text>
-      <View style={styles.card}>
-        <NavRow icon={<Info size={16} color="#66fcf1" />} label="About MedNova" />
-        <Divider />
-        <NavRow icon={<Moon size={16} color="#66fcf1" />} label="Appearance" />
-      </View>
+            {/* Edit / Navigation Buttons */}
+            <View style={styles.actionBtnRow}>
+              <TouchableOpacity style={[styles.actionBtn, { borderColor: theme.colors.outlineVariant }]} onPress={startEditing} activeOpacity={0.8}>
+                <Text style={[theme.typography.labelCaps, { color: theme.colors.primary }]}>Edit Profile Details</Text>
+              </TouchableOpacity>
+            </View>
 
-      {/* ── Sign Out ───────────────────────────────────────────────────────── */}
-      <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.8}>
-        <LogOut size={18} color="#d90429" />
-        <Text style={styles.logoutText}>Sign Out</Text>
-      </TouchableOpacity>
+            <Text style={[styles.sectionTitle, theme.typography.labelCaps, { color: theme.colors.onSurfaceVariant }]}>Preferences</Text>
+            <View style={[styles.infoCard, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}>
+              <TouchableOpacity style={styles.navRow} activeOpacity={0.7} onPress={() => router.push('/settings')}>
+                <View style={styles.navLeft}>
+                  <View style={[styles.navIconWrap, { backgroundColor: 'rgba(0,10,36,0.05)' }]}>
+                    <Settings size={16} color={theme.colors.primary} />
+                  </View>
+                  <Text style={[styles.navLabel, theme.typography.bodyMd, { color: theme.colors.primary, fontWeight: '600' }]}>App Settings</Text>
+                </View>
+                <ChevronRight size={14} color={theme.colors.outline} />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-      <Text style={styles.version}>MedNova Mobile v1.0.0</Text>
-    </ScrollView>
+        {/* ── Sign Out ───────────────────────────────────────────────────────── */}
+        <TouchableOpacity style={[styles.logoutCard, { borderColor: theme.colors.error }]} onPress={handleLogout} activeOpacity={0.8}>
+          <LogOut size={18} color={theme.colors.error} />
+          <Text style={[styles.logoutText, theme.typography.bodyMd, { color: theme.colors.error, fontWeight: '700' }]}>Sign Out Account</Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.version, theme.typography.bodySm, { color: theme.colors.outline }]}>MedNova Mobile v1.0.0</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const Divider = () => <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.04)', marginHorizontal: 4 }} />;
+const Divider = () => <View style={{ height: 1, backgroundColor: theme.colors.outlineVariant + '33', marginHorizontal: 4 }} />;
 
-const PermRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
-  <View style={styles.permRow}>
-    {icon}
-    <Text style={styles.permLabel}>{label}</Text>
-    <Text style={styles.permValue}>{value}</Text>
+const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
+  <View style={styles.infoRow}>
+    <View style={styles.rowLeft}>
+      {icon}
+      <Text style={[styles.rowLabel, theme.typography.bodySm, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
+    </View>
+    <Text style={[styles.rowValue, theme.typography.bodySm, { color: theme.colors.primary, fontWeight: '700' }]}>{value}</Text>
   </View>
 );
 
-const NavRow: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-  <TouchableOpacity style={styles.navRow} activeOpacity={0.7}>
-    <View style={styles.navLeft}>
-      <View style={styles.navIconWrap}>{icon}</View>
-      <Text style={styles.navLabel}>{label}</Text>
-    </View>
-    <ChevronRight size={14} color="#3a3e46" />
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0b0c10' },
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 20, paddingBottom: 80 },
 
   profileCard: {
-    backgroundColor: '#1a2130', borderRadius: 20, padding: 20,
+    borderRadius: 20, padding: 20,
     flexDirection: 'row', alignItems: 'center', gap: 16,
-    marginBottom: 28,
-    borderWidth: 1, borderColor: 'rgba(102,252,241,0.1)',
+    marginBottom: 24, borderWidth: 1,
+    shadowColor: '#000000', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.02, shadowRadius: 6, elevation: 1,
   },
   avatarWrap: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(102,252,241,0.08)',
-    borderWidth: 2, borderColor: 'rgba(102,252,241,0.2)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 64, height: 64, borderRadius: 32, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
   },
+  avatarImg: { width: 64, height: 64 },
   profileInfo: { flex: 1 },
-  profileName: { fontSize: 18, fontWeight: '800', color: '#ffffff' },
+  profileName: { },
   roleRow: { marginTop: 6, marginBottom: 4 },
-  rolePill: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  rolePill: { alignSelf: 'flex-start', borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 3 },
   roleText: { fontSize: 10, fontWeight: '700' },
-  profileEmail: { fontSize: 12, color: '#5a5c5e' },
+  profileEmail: { },
 
-  sectionTitle: {
-    fontSize: 11, fontWeight: '800', color: '#5a5c5e',
-    textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10,
-  },
+  sectionTitle: { textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, marginTop: 12 },
 
-  card: {
-    backgroundColor: '#1a2130', borderRadius: 16, marginBottom: 24,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', overflow: 'hidden',
+  infoCard: {
+    borderRadius: 20, marginBottom: 20, padding: 12, borderWidth: 1,
+    shadowColor: '#000000', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.02, shadowRadius: 6, elevation: 1,
   },
-  permCard: {
-    backgroundColor: '#1a2130', borderRadius: 16, marginBottom: 24,
-    paddingVertical: 4,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 8
   },
-  permRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  permLabel: { fontSize: 13, color: '#8f9091', flex: 1 },
-  permValue: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowLabel: { fontSize: 13 },
+  rowValue: { fontSize: 13, flex: 1, textAlign: 'right', marginLeft: 16 },
 
-  settingRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', padding: 16,
+  inputLabel: { textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 10, marginTop: 10, paddingHorizontal: 8 },
+  input: {
+    height: 40, borderWidth: 1, borderColor: theme.colors.outlineVariant,
+    borderRadius: 10, paddingHorizontal: 12, marginTop: 4, marginBottom: 10, fontSize: 14, marginHorizontal: 8
   },
-  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  settingText: { flex: 1 },
-  settingLabel: { fontSize: 14, fontWeight: '600', color: '#ffffff' },
-  settingDesc: { fontSize: 11, color: '#5a5c5e', marginTop: 2, lineHeight: 16 },
+  btnRow: { flexDirection: 'row', gap: 10, marginTop: 12, marginHorizontal: 8, marginBottom: 8 },
+  btn: { flex: 1, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  cancelBtn: { borderWidth: 1, borderColor: theme.colors.outlineVariant },
+  saveBtn: { },
+
+  actionBtnRow: { marginBottom: 20 },
+  actionBtn: {
+    borderWidth: 1, borderRadius: 16, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff'
+  },
 
   navRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', padding: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 8, height: 44
   },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  navIconWrap: {
-    width: 32, height: 32, borderRadius: 8,
-    backgroundColor: 'rgba(102,252,241,0.08)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  navLabel: { fontSize: 14, fontWeight: '600', color: '#e2e4e6' },
+  navIconWrap: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  navLabel: { fontSize: 14 },
 
   logoutCard: {
-    backgroundColor: 'rgba(217,4,41,0.08)',
-    borderWidth: 1, borderColor: 'rgba(217,4,41,0.2)',
-    borderRadius: 16, padding: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, marginBottom: 24,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 20, height: 50, marginTop: 12, marginBottom: 24, backgroundColor: '#ffffff',
   },
-  logoutText: { fontSize: 15, fontWeight: '700', color: '#d90429' },
-
-  version: { fontSize: 11, color: '#2a2e36', textAlign: 'center', fontWeight: '600' },
+  logoutText: { fontSize: 15 },
+  version: { textAlign: 'center', fontSize: 10, opacity: 0.4, marginBottom: 20 }
 });

@@ -5,11 +5,15 @@ import { useTheme } from '../../theme/ThemeProvider';
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  leftIcon?: React.ReactNode;
+  rightElement?: React.ReactNode;
 }
 
 export const Input: React.FC<InputProps> = ({
   label,
   error,
+  leftIcon,
+  rightElement,
   style,
   ...props
 }) => {
@@ -18,7 +22,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, marginBottom: 6 }]}>
+        <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, marginBottom: 8, marginLeft: 4 }]}>
           {label}
         </Text>
       )}
@@ -26,15 +30,16 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           {
-            backgroundColor: colors.surfaceContainerLow,
-            borderRadius: roundness.md, // 12px for inputs
-            borderColor: error ? colors.error : colors.outlineVariant,
-            borderWidth: 1,
+            backgroundColor: colors.surfaceContainerHighest, // #e2e2e2 for neumorphic recessed look
+            borderRadius: roundness.md, // 12px (soft) radius for interactive elements
+            borderColor: error ? colors.error : 'transparent',
+            borderWidth: error ? 1 : 0,
           },
         ]}
       >
+        {leftIcon && <View style={styles.leftIconContainer}>{leftIcon}</View>}
         <TextInput
-          placeholderTextColor={colors.onSurfaceVariant + '80'}
+          placeholderTextColor={colors.outline}
           style={[
             styles.input,
             typography.bodyMd,
@@ -45,9 +50,10 @@ export const Input: React.FC<InputProps> = ({
           ]}
           {...props}
         />
+        {rightElement && <View style={styles.rightElementContainer}>{rightElement}</View>}
       </View>
       {error && (
-        <Text style={[typography.bodySm, { color: colors.error, marginTop: 4 }]}>
+        <Text style={[typography.bodySm, { color: colors.error, marginTop: 4, marginLeft: 4 }]}>
           {error}
         </Text>
       )}
@@ -64,10 +70,23 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    height: 54, // standard height for clinical inputs
+  },
+  leftIconContainer: {
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rightElementContainer: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
+    height: '100%',
+    paddingVertical: 0,
   },
 });
+

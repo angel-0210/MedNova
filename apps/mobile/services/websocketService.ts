@@ -58,10 +58,18 @@ class WebSocketService {
               }
             );
             this.queryClient.invalidateQueries({ queryKey: ['patients'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'patients'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', data.patient_id] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
             break;
 
           case 'new_alert':
             this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'alerts'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+            if (data.patient_id) {
+              this.queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
+            }
             await notificationService.showLocalAsync({
               title: `${data.alert_type.toUpperCase()} ALERT: Bed ${data.bed_number ?? 'N/A'}`,
               body:  data.message,
@@ -72,6 +80,8 @@ class WebSocketService {
           case 'alert_acknowledged':
           case 'alert_resolved':
             this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'alerts'] });
+            this.queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
             break;
 
           case 'device_status':

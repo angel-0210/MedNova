@@ -1,4 +1,5 @@
 import React from 'react';
+import { useWindowDimensions } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { 
@@ -96,6 +97,7 @@ const SettingsNavigator = () => (
 // Main Bottom Tab Navigator
 export const AppTabs = () => {
   const { colors, typography } = useTheme();
+  const { width } = useWindowDimensions();
 
   return (
     <Tab.Navigator
@@ -104,6 +106,7 @@ export const AppTabs = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.onSurfaceVariant,
         tabBarStyle: {
+          display: width >= 768 ? 'none' : 'flex',
           backgroundColor: colors.surface,
           borderTopColor: colors.outlineVariant + '33',
           height: 80,
@@ -124,6 +127,7 @@ export const AppTabs = () => {
     </Tab.Navigator>
   );
 };
+
 
 // Root Navigator
 export const RootNavigator = () => (

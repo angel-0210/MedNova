@@ -24,34 +24,38 @@ export const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case 'secondary':
         return {
-          backgroundColor: colors.secondaryContainer,
-          textColor: '#000000',
-          borderColor: 'transparent',
+          backgroundColor: 'rgba(255, 255, 255, 0.25)',
+          textColor: colors.primary,
+          borderColor: 'rgba(255, 255, 255, 0.8)',
+          borderWidth: 1,
         };
       case 'outline':
         return {
           backgroundColor: 'transparent',
           textColor: colors.primary,
           borderColor: colors.primary,
+          borderWidth: 1.5,
         };
       case 'danger':
         return {
           backgroundColor: colors.error,
           textColor: colors.onError,
           borderColor: 'transparent',
+          borderWidth: 0,
         };
       default:
         return {
           backgroundColor: colors.primary,
           textColor: colors.onPrimary,
           borderColor: 'transparent',
+          borderWidth: 0,
         };
     }
   };
 
-  const { backgroundColor, textColor, borderColor } = getButtonStyles();
+  const { backgroundColor, textColor, borderColor, borderWidth } = getButtonStyles();
 
-  const paddingVertical = size === 'small' ? 8 : size === 'large' ? 16 : 12;
+  const height = size === 'small' ? 36 : size === 'large' ? 56 : 48;
   const paddingHorizontal = size === 'small' ? 16 : size === 'large' ? 24 : 20;
   const fontSize = size === 'small' ? typography.bodySm.fontSize : typography.bodyMd.fontSize;
 
@@ -64,8 +68,8 @@ export const Button: React.FC<ButtonProps> = ({
         {
           backgroundColor,
           borderColor,
-          borderWidth: variant === 'outline' ? 1 : 0,
-          paddingVertical,
+          borderWidth,
+          height,
           paddingHorizontal,
           borderRadius: roundness.md, // 12px for interactive elements
           opacity: disabled || loading ? 0.6 : 1,

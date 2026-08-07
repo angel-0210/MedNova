@@ -4,7 +4,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { useTheme } from '../theme/ThemeProvider';
 
-export const ReportViewer: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
+export const ReportViewer: React.FC<{ route: any; navigation: any }> = ({ route, navigation: _navigation }) => {
   const { reportId } = route.params;
   const { colors, typography } = useTheme();
 

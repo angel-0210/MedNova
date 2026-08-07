@@ -47,7 +47,7 @@ export const BLEPairing: React.FC<{ navigation: any }> = ({ navigation }) => {
       
       Alert.alert('Success', 'Local ventilator device paired successfully.');
       navigation.goBack();
-    } catch (err) {
+    } catch {
       Alert.alert('Connection Failed', 'Could not establish connection to the BLE peripheral.');
     }
   };

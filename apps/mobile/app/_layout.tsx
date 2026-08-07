@@ -45,7 +45,7 @@ export default function RootLayout() {
         */}
         <AuthProvider>
           <RBACProvider>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <Slot />
           </RBACProvider>
         </AuthProvider>

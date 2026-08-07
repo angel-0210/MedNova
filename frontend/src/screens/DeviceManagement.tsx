@@ -1,18 +1,18 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Wind, Syringe, Monitor, Search, Plus } from 'lucide-react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, useWindowDimensions } from 'react-native';
+import { Wind, Syringe, Monitor, Search, Plus, Bell, Activity as ActiveIcon } from 'lucide-react-native';
 import { useDeviceStore } from '../stores';
 import { Card } from '../components/common/Card';
 import { useTheme } from '../theme/ThemeProvider';
 import { useRoleAccess } from '../hooks/useRoleAccess';
 import { Device } from '../types';
 
-const { width } = Dimensions.get('window');
-
 export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, typography } = useTheme();
   const { devices, fetchDevices } = useDeviceStore();
   const { canPairDevices } = useRoleAccess();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
 
   useEffect(() => {
     fetchDevices();
@@ -28,22 +28,22 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
         name: 'Ventilator V-800',
         id: `VT-${device.connection_code || '2938'}`,
         status: 'Maintenance Due',
-        statusBg: '#FFA515',
+        statusBg: colors.statusCritical,
         statusTextColor: '#FFFFFF',
-        icon: <Wind size={22} color="#1E293B" />,
+        icon: <Wind size={22} color={colors.primary} />,
         battery: '32%',
         connection: 'Stable',
         connectionColor: colors.primary,
         progress: 0.8,
-        progressColor: '#FFA515',
+        progressColor: colors.statusCritical,
         calibText: 'Last calibrated: 180 days ago',
-        calibTextColor: '#FFA515',
+        calibTextColor: colors.statusCritical,
         actions: (
           <View style={styles.actionsContainer}>
             <TouchableOpacity style={styles.detailsBtn}>
-              <Text style={styles.detailsBtnText}>Details</Text>
+              <Text style={[styles.detailsBtnText, { color: colors.onSurfaceVariant }]}>Details</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.scheduleServiceBtn}>
+            <TouchableOpacity style={[styles.scheduleServiceBtn, { backgroundColor: '#E0F2FE' }]}>
               <Text style={styles.scheduleServiceBtnText}>Schedule Service</Text>
             </TouchableOpacity>
           </View>
@@ -54,20 +54,20 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
         name: 'Syringe Pump SP-2',
         id: `SP-${device.connection_code || '1024'}`,
         status: 'Online',
-        statusBg: colors.primary,
+        statusBg: colors.statusStable,
         statusTextColor: '#FFFFFF',
-        icon: <Syringe size={22} color="#1E293B" />,
+        icon: <Syringe size={22} color={colors.primary} />,
         battery: '98% (AC Power)',
         connection: 'Paired',
         connectionColor: colors.primary,
         progress: 0.15,
         progressColor: colors.primary,
         calibText: 'Last calibrated: 12 days ago',
-        calibTextColor: '#64748B',
+        calibTextColor: colors.onSurfaceVariant,
         actions: (
           <View style={[styles.actionsContainer, { justifyContent: 'flex-end' }]}>
             <TouchableOpacity style={styles.detailsBtn}>
-              <Text style={styles.detailsBtnText}>Details</Text>
+              <Text style={[styles.detailsBtnText, { color: colors.onSurfaceVariant }]}>Details</Text>
             </TouchableOpacity>
           </View>
         )
@@ -77,23 +77,23 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
         name: 'Patient Monitor PM-X',
         id: `PM-${device.connection_code || '4491'}`,
         status: 'Low Signal',
-        statusBg: '#E2E8F0',
-        statusTextColor: '#475569',
-        icon: <Monitor size={22} color="#1E293B" />,
+        statusBg: colors.surfaceContainerHighest,
+        statusTextColor: colors.primary,
+        icon: <Monitor size={22} color={colors.primary} />,
         battery: '65%',
         connection: 'Weak Wi-Fi',
-        connectionColor: '#FFA515',
+        connectionColor: colors.statusCritical,
         progress: 0.45,
         progressColor: colors.primary,
         calibText: 'Last calibrated: 45 days ago',
-        calibTextColor: '#64748B',
+        calibTextColor: colors.onSurfaceVariant,
         actions: (
           <View style={styles.actionsContainer}>
             <TouchableOpacity style={styles.detailsBtn}>
-              <Text style={styles.detailsBtnText}>Details</Text>
+              <Text style={[styles.detailsBtnText, { color: colors.onSurfaceVariant }]}>Details</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.diagnoseBtn}>
-              <Text style={styles.diagnoseBtnText}>Diagnose</Text>
+            <TouchableOpacity style={[styles.diagnoseBtn, { backgroundColor: colors.surfaceContainerHighest }]}>
+              <Text style={[styles.diagnoseBtnText, { color: colors.primary }]}>Diagnose</Text>
             </TouchableOpacity>
           </View>
         )
@@ -111,12 +111,12 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
           <View style={styles.topRow}>
             <View style={styles.deviceTitleGroup}>
               {/* Square icon container */}
-              <View style={styles.iconContainer}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainerHighest }]}>
                 {meta.icon}
               </View>
               <View style={styles.titleTextContainer}>
                 <Text style={[styles.deviceName, { color: colors.primary }]}>{meta.name}</Text>
-                <Text style={styles.deviceId}>ID: {meta.id}</Text>
+                <Text style={[styles.deviceId, { color: colors.onSurfaceVariant }]}>ID: {meta.id}</Text>
               </View>
             </View>
 
@@ -131,20 +131,20 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
           {/* Grid Parameters: Battery and Connection */}
           <View style={styles.paramGrid}>
             <View style={styles.paramItem}>
-              <Text style={styles.paramLabel}>Battery</Text>
+              <Text style={[styles.paramLabel, { color: colors.onSurfaceVariant }]}>Battery</Text>
               <Text style={[styles.paramValue, { color: colors.primary }]}>{meta.battery}</Text>
             </View>
 
             <View style={styles.paramItem}>
-              <Text style={styles.paramLabel}>Connection</Text>
+              <Text style={[styles.paramLabel, { color: colors.onSurfaceVariant }]}>Connection</Text>
               <Text style={[styles.paramValue, { color: meta.connectionColor }]}>{meta.connection}</Text>
             </View>
           </View>
 
           {/* Calibration Progress Bar */}
           <View style={styles.calibrationSection}>
-            <Text style={styles.calibrationLabel}>Calibration</Text>
-            <View style={styles.progressBarTrack}>
+            <Text style={[styles.calibrationLabel, { color: colors.onSurfaceVariant }]}>Calibration</Text>
+            <View style={[styles.progressBarTrack, { backgroundColor: colors.surfaceContainer }]}>
               <View style={[
                 styles.progressBarFill,
                 { width: `${meta.progress * 100}%`, backgroundColor: meta.progressColor }
@@ -162,27 +162,33 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
     );
   };
 
-  return (
-    <View style={[styles.container, { backgroundColor: '#F8F9FB' }]}>
+  const deviceContent = (
+    <View style={styles.flex1}>
       {/* Top App Bar Header */}
-      <View style={styles.appBar}>
+      <View style={[styles.appBar, { backgroundColor: colors.surfaceGlass, borderBottomColor: colors.outlineVariant + '33' }]}>
         <View style={styles.appBarLeft}>
           <Image
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL9jzPGC__Q1EgdkL1-ZIK676SXnnFnAvqyKxxTaDt3OuaR30FBwty5DudtuLXrMzc1xgwTcq9n5LFUpOqswww-QRtVKF0_9N0jG0Cq37p0u_R-O3kWRGb-pdj6Cr0zg2vD0TAqf1yxqxJGc3Uzn4yuaj0JGEspmWaJBS7hrOfRxXxbYzXOHJRlipb4UgW5Q6jTuZ05AcJrMcvF8QBabo1tsYo_vg1Tryruo9LpXc_f3vToQabcDU_dg' }}
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: colors.outlineVariant }]}
           />
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>MedNova</Text>
+          <Text style={[typography.labelCaps, { color: colors.onSurface, fontWeight: 'bold' }]}>
+            Dr. Sarah Mitchell
+          </Text>
         </View>
-
+        <Text style={[typography.headlineLgMobile, { color: colors.primary, fontWeight: 'bold' }]}>
+          ICU Intel
+        </Text>
         <TouchableOpacity style={styles.appBarIconButton}>
-          <Search size={22} color={colors.primary} />
+          <Search size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Screen Header & Action */}
-      <View style={styles.screenHeader}>
-        <Text style={[styles.screenTitleText, { color: colors.primary }]}>Device Management</Text>
-        <Text style={styles.screenSubtitleText}>Monitor and manage connected ICU equipment.</Text>
+      <View style={[styles.screenHeader, isDesktop ? styles.desktopPaddingHeader : null]}>
+        <Text style={[typography.displayLg, { color: colors.primary, fontWeight: '700' }]}>Device Management</Text>
+        <Text style={[typography.bodySm, { color: colors.onSurfaceVariant, marginTop: 4, marginBottom: 16 }]}>
+          Monitor and manage connected ICU equipment.
+        </Text>
 
         {canPairDevices && (
           <TouchableOpacity
@@ -204,12 +210,12 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
           { device_id: '3', mac_address: 'PM-4491', connection_code: '4491', battery_level: 65, status: 'offline' }
         ] as any}
         keyExtractor={(item) => item.device_id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, isDesktop ? styles.desktopPaddingList : null]}
         renderItem={renderDeviceCard}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[typography.bodyMd, { color: '#94A3B8', fontWeight: '500' }]}>
+            <Text style={[typography.bodyMd, { color: colors.onSurfaceVariant, fontWeight: '500' }]}>
               No ventilator devices registered in this hospital.
             </Text>
           </View>
@@ -217,58 +223,130 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
       />
     </View>
   );
+
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopContainer}>
+        {/* Desktop sidebar */}
+        <View style={[styles.desktopSidebar, { backgroundColor: colors.surface, borderRightColor: colors.outlineVariant + '33' }]}>
+          <TouchableOpacity 
+            style={styles.sidebarLink} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Dashboard')}
+          >
+            <ActiveIcon size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Dashboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.sidebarLink} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Patients')}
+          >
+            <ActiveIcon size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Patients
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.sidebarLink} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Alerts')}
+          >
+            <Bell size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Alerts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.sidebarLink, styles.sidebarLinkBottom]} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Search size={20} color={colors.onSurfaceVariant} />
+            <Text style={[typography.labelCaps, { color: colors.onSurfaceVariant, fontSize: 9, marginTop: 4 }]}>
+              Settings
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.flex1}>{deviceContent}</View>
+      </View>
+    );
+  }
+
+  return deviceContent;
 };
 
 const styles = StyleSheet.create({
-  container: {
+  flex1: {
     flex: 1,
+  },
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  desktopSidebar: {
+    width: 96,
+    height: '100%',
+    alignItems: 'center',
+    paddingVertical: 32,
+    borderRightWidth: 1,
+  },
+  sidebarLink: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  sidebarLinkActive: {
+    position: 'relative',
+  },
+  activeIndicatorBar: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 4,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  sidebarLinkBottom: {
+    marginTop: 'auto',
+    marginBottom: 0,
   },
   appBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    height: 64,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    zIndex: 10,
   },
   appBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    marginRight: 12,
-    backgroundColor: '#E2E8F0',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   appBarIconButton: {
     padding: 6,
   },
-  // Screen Titles
   screenHeader: {
     padding: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
-  screenTitleText: {
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  screenSubtitleText: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
-    marginBottom: 16,
+  desktopPaddingHeader: {
+    paddingHorizontal: 40,
+    paddingTop: 32,
   },
   registerBtn: {
     flexDirection: 'row',
@@ -294,17 +372,14 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 110,
   },
-  // Device Cards
+  desktopPaddingList: {
+    paddingHorizontal: 40,
+  },
   deviceCard: {
     padding: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: 'rgba(0, 10, 36, 0.05)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 3,
   },
   cardContent: {
     padding: 16,
@@ -323,7 +398,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -338,7 +412,6 @@ const styles = StyleSheet.create({
   },
   deviceId: {
     fontSize: 12.5,
-    color: '#64748B',
     marginTop: 2,
   },
   statusChip: {
@@ -350,7 +423,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  // Parameter Grid
   paramGrid: {
     flexDirection: 'row',
     marginTop: 16,
@@ -362,7 +434,6 @@ const styles = StyleSheet.create({
   paramLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
     textTransform: 'uppercase',
   },
   paramValue: {
@@ -370,7 +441,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
   },
-  // Calibration section
   calibrationSection: {
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
@@ -380,12 +450,10 @@ const styles = StyleSheet.create({
   calibrationLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
     textTransform: 'uppercase',
   },
   progressBarTrack: {
     height: 6,
-    backgroundColor: '#E2E8F0',
     borderRadius: 3,
     marginVertical: 8,
     overflow: 'hidden',
@@ -398,7 +466,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // Buttons actions row
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -409,12 +476,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   detailsBtnText: {
-    color: '#475569',
     fontSize: 13.5,
     fontWeight: '700',
   },
   scheduleServiceBtn: {
-    backgroundColor: '#E0F2FE',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -425,13 +490,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   diagnoseBtn: {
-    backgroundColor: '#F1F5F9',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   diagnoseBtnText: {
-    color: '#334155',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -441,3 +504,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

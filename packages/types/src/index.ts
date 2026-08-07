@@ -7,6 +7,10 @@ export interface User {
   email: string;
   role: UserRole;
   is_active: boolean;
+  department?: string;
+  phone?: string;
+  profile_picture?: string;
+  license_number?: string;
   created_at: string;
   updated_at: string;
 }

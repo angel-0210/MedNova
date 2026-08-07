@@ -1,9 +1,11 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
-import { LayoutDashboard, Users, ShieldAlert, Wifi, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LayoutDashboard, Users, ShieldAlert, Wifi, User, Brain, FileText } from 'lucide-react-native';
 import { useRBAC } from '../../../contexts/RBACContext';
 import { useAlertsQuery } from '@mednova/hooks';
+import { theme } from '../../../constants/theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alert badge component for the Alerts tab
@@ -19,16 +21,27 @@ const AlertBadge: React.FC<{ count: number }> = ({ count }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab icon with optional badge
+// Tab icon with optional badge and active background capsule
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface TabIconProps {
   icon: React.ReactNode;
   badge?: number;
+  focused: boolean;
 }
 
-const TabIcon: React.FC<TabIconProps> = ({ icon, badge }) => (
-  <View style={styles.iconContainer}>
+const TabIcon: React.FC<TabIconProps> = ({ icon, badge, focused }) => (
+  <View style={[
+    styles.iconContainer,
+    focused && {
+      backgroundColor: theme.colors.secondaryContainer,
+      borderRadius: 16,
+      width: 52,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }
+  ]}>
     {icon}
     {badge !== undefined && <AlertBadge count={badge} />}
   </View>
@@ -38,16 +51,20 @@ const TabIcon: React.FC<TabIconProps> = ({ icon, badge }) => (
 // Tab bar layout
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ACTIVE_COLOR = '#66fcf1';
-const INACTIVE_COLOR = '#5a5c5e';
-const TAB_BG = '#151a22';
-const BORDER_COLOR = 'rgba(102, 252, 241, 0.08)';
+const ACTIVE_COLOR = theme.colors.primary;
+const INACTIVE_COLOR = theme.colors.outline;
+const TAB_BG = theme.colors.backgroundMain;
+const BORDER_COLOR = theme.colors.outlineVariant + '33';
 
 export default function TabsLayout() {
-  const { canViewDevicesTab } = useRBAC();
+  const { canViewDevicesTab, canViewPredictionsTab, canViewReportsTab } = useRBAC();
   const { data: alerts = [] } = useAlertsQuery();
+  const insets = useSafeAreaInsets();
 
   const pendingAlertCount = alerts.filter((a) => a.status === 'pending').length;
+  
+  // Calculate dynamic bottom margin based on safe area to sit above gesture nav
+  const bottomInset = insets.bottom > 0 ? insets.bottom : 16;
 
   return (
     <Tabs
@@ -56,16 +73,26 @@ export default function TabsLayout() {
         tabBarActiveTintColor: ACTIVE_COLOR,
         tabBarInactiveTintColor: INACTIVE_COLOR,
         tabBarStyle: {
-          backgroundColor: TAB_BG,
-          borderTopColor: BORDER_COLOR,
-          borderTopWidth: 1,
-          height: 72,
-          paddingBottom: 10,
+          position: 'absolute',
+          bottom: bottomInset,
+          left: 16,
+          right: 16,
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: 32,
+          borderTopWidth: 0,
+          height: 68,
           paddingTop: 8,
+          paddingBottom: 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 16,
+          elevation: 6,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
+          fontFamily: theme.typography.labelCaps.fontFamily,
           letterSpacing: 0.4,
           marginTop: 2,
         },
@@ -76,8 +103,8 @@ export default function TabsLayout() {
         name="dashboard"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon={<LayoutDashboard size={22} color={color} />} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<LayoutDashboard size={20} color={color} />} focused={focused} />
           ),
         }}
       />
@@ -87,8 +114,8 @@ export default function TabsLayout() {
         name="patients"
         options={{
           title: 'Patients',
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon={<Users size={22} color={color} />} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<Users size={20} color={color} />} focused={focused} />
           ),
         }}
       />
@@ -98,36 +125,60 @@ export default function TabsLayout() {
         name="alerts"
         options={{
           title: 'Alerts',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <TabIcon
-              icon={<ShieldAlert size={22} color={color} />}
+              icon={<ShieldAlert size={20} color={color} />}
               badge={pendingAlertCount}
+              focused={focused}
             />
           ),
         }}
       />
 
-      {/* ── Devices (hidden for attendant) ────────────────────────── */}
+      {/* ── Predictions (Doctor only) ──────────────────────────────── */}
       <Tabs.Screen
-        name="devices"
+        name="predictions"
         options={{
-          title: 'Devices',
-          // href: null removes the button from the tab bar while keeping the route accessible
-          // so direct URL navigation also falls through to the RBAC check inside the screen.
-          href: canViewDevicesTab ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon={<Wifi size={22} color={color} />} />
+          title: 'AI Forecasts',
+          href: canViewPredictionsTab ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<Brain size={20} color={color} />} focused={focused} />
           ),
         }}
       />
 
-      {/* ── Profile ──────────────────────────────────────────────── */}
+      {/* ── Reports (Doctor only) ─────────────────────────────────── */}
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: 'Reports',
+          href: canViewReportsTab ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<FileText size={20} color={color} />} focused={focused} />
+          ),
+        }}
+      />
+
+      {/* ── Devices (hidden for attendant/doctor) ─────────────────── */}
+      <Tabs.Screen
+        name="devices"
+        options={{
+          title: 'Devices',
+          href: canViewDevicesTab ? undefined : null,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<Wifi size={20} color={color} />} focused={focused} />
+          ),
+        }}
+      />
+
+      {/* ── Profile (hidden for doctor) ──────────────────────────── */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon={<User size={22} color={color} />} />
+          href: canViewPredictionsTab ? null : undefined,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon icon={<User size={20} color={color} />} focused={focused} />
           ),
         }}
       />
@@ -135,23 +186,27 @@ export default function TabsLayout() {
   );
 }
 
+
 const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    width: 52,
+    height: 32,
   },
   badge: {
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: '#d90429',
+    backgroundColor: theme.colors.error,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
     paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
   badgeText: {
     color: '#ffffff',
@@ -160,3 +215,4 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
+

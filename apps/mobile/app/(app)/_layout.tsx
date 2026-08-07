@@ -13,13 +13,15 @@ import { ActivityIndicator, View } from 'react-native';
  *     ├── device/[id]   →  Device detail  (pushed over tab bar, no tab visible)
  *     └── analytics     →  Analytics      (pushed over tab bar, no tab visible)
  */
+import { theme } from '../../constants/theme';
+
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0b0c10' }}>
-        <ActivityIndicator size="large" color="#66fcf1" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -31,20 +33,26 @@ export default function AppLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#1f2833' },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: { fontWeight: '700', fontSize: 16 },
+        headerStyle: { backgroundColor: theme.colors.backgroundMain },
+        headerTintColor: theme.colors.primary,
+        headerTitleStyle: { 
+          fontWeight: '700', 
+          fontSize: 16,
+          fontFamily: theme.typography.labelCaps.fontFamily
+        },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: '#0b0c10' },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       {/* The tab group renders without a header — the tab bar provides navigation */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
       {/* Detail screens pushed over the tab bar — show a back-button header */}
-      <Stack.Screen name="patient/[id]" options={{ title: 'Patient Telemetry' }} />
+      <Stack.Screen name="patient/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="monitoring"   options={{ headerShown: false }} />
       <Stack.Screen name="device/[id]"  options={{ title: 'Gateway Details' }} />
       <Stack.Screen name="analytics"    options={{ title: 'Clinical Analytics' }} />
+      <Stack.Screen name="settings"     options={{ title: 'Settings' }} />
     </Stack>
   );
 }

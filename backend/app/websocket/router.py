@@ -42,3 +42,37 @@ async def websocket_endpoint(
     except Exception as e:
         logger.exception("WebSocket error occurred", error=str(e))
         manager.disconnect(websocket, hospital_id)
+
+
+@router.websocket("/ws/patient/{patient_id}")
+async def patient_websocket_endpoint(
+    websocket: WebSocket,
+    patient_id: uuid.UUID,
+    token: str = Query(...)
+):
+    # 1. Authenticate the WebSocket connection via query token
+    try:
+        payload = await decode_supabase_token(token)
+        hospital_id_str = payload.hospital_id
+        if not hospital_id_str:
+            await websocket.close(code=1008, reason="Missing hospital affiliation")
+            return
+    except Exception as e:
+        logger.warn("WebSocket patient authentication failed", error=str(e))
+        await websocket.close(code=1008, reason="Invalid authentication token")
+        return
+
+    # 2. Join the patient room
+    await manager.connect_patient(websocket, patient_id)
+    try:
+        # Keep-alive receive loop
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        manager.disconnect_patient(websocket, patient_id)
+    except Exception as e:
+        logger.exception("WebSocket patient error occurred", error=str(e))
+        manager.disconnect_patient(websocket, patient_id)
+

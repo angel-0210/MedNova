@@ -17,8 +17,8 @@ export const authRepository = {
 };
 
 export const patientRepository = {
-  async listPatients(): Promise<Patient[]> {
-    const response = await apiClient.get('/api/v1/patients');
+  async listPatients(params?: { search?: string; ventilator_status?: string; skip?: number; limit?: number }): Promise<Patient[]> {
+    const response = await apiClient.get('/api/v1/patients', { params });
     return response.data;
   },
 
@@ -92,3 +92,114 @@ export const deviceRepository = {
     return response.data;
   },
 };
+
+export const doctorRepository = {
+  async getDashboard(): Promise<any> {
+    const response = await apiClient.get('/api/v1/doctor/dashboard');
+    return response.data;
+  },
+
+  async listPatients(params?: { search?: string; ventilator_status?: string; skip?: number; limit?: number }): Promise<Patient[]> {
+    const response = await apiClient.get('/api/v1/doctor/patients', { params });
+    return response.data;
+  },
+
+  async getPatient(patientId: string): Promise<Patient> {
+    const response = await apiClient.get(`/api/v1/doctor/patients/${patientId}`);
+    return response.data;
+  },
+
+  async getPatientTimeline(patientId: string): Promise<any[]> {
+    const response = await apiClient.get(`/api/v1/doctor/patients/${patientId}/timeline`);
+    return response.data;
+  },
+
+  async addPatientNote(patientId: string, noteText: string): Promise<any> {
+    const response = await apiClient.post(`/api/v1/doctor/patients/${patientId}/notes`, { note_text: noteText });
+    return response.data;
+  },
+
+
+  async listAlerts(params?: { alert_type?: string; status?: string }): Promise<Alert[]> {
+    const response = await apiClient.get('/api/v1/doctor/alerts', { params });
+    return response.data;
+  },
+
+  async getAlert(alertId: string): Promise<Alert> {
+    const response = await apiClient.get(`/api/v1/doctor/alerts/${alertId}`);
+    return response.data;
+  },
+
+  async acknowledgeAlert(alertId: string): Promise<Alert> {
+    const response = await apiClient.patch(`/api/v1/doctor/alerts/${alertId}/acknowledge`);
+    return response.data;
+  },
+
+  async resolveAlert(alertId: string): Promise<Alert> {
+    const response = await apiClient.patch(`/api/v1/doctor/alerts/${alertId}/resolve`);
+    return response.data;
+  },
+
+  async addAlertNote(alertId: string, noteText: string): Promise<any> {
+    const response = await apiClient.post(`/api/v1/doctor/alerts/${alertId}/note`, { note_text: noteText });
+    return response.data;
+  },
+
+  async getLatestPrediction(patientId: string): Promise<AIPrediction> {
+    const response = await apiClient.get(`/api/v1/doctor/predictions/${patientId}`);
+    return response.data;
+  },
+
+  async getPredictionHistory(patientId: string): Promise<AIPrediction[]> {
+    const response = await apiClient.get(`/api/v1/doctor/predictions/history/${patientId}`);
+    return response.data;
+  },
+
+  async refreshPrediction(patientId: string): Promise<AIPrediction> {
+    const response = await apiClient.post(`/api/v1/doctor/predictions/refresh/${patientId}`);
+    return response.data;
+  },
+
+  async listReports(params?: { patient_id?: string; report_type?: string }): Promise<any[]> {
+    const response = await apiClient.get('/api/v1/doctor/reports', { params });
+    return response.data;
+  },
+
+  async getReport(reportId: string): Promise<any> {
+    const response = await apiClient.get(`/api/v1/doctor/reports/${reportId}`);
+    return response.data;
+  },
+
+  async generateReport(patientId: string, reportType: string): Promise<any> {
+    const response = await apiClient.post('/api/v1/doctor/reports/generate', { patient_id: patientId, report_type: reportType });
+    return response.data;
+  },
+
+  async getReportPreview(reportId: string): Promise<any> {
+    const response = await apiClient.get(`/api/v1/doctor/reports/${reportId}/preview`);
+    return response.data;
+  },
+
+  async exportReportPDF(reportId: string): Promise<any> {
+    const response = await apiClient.post(`/api/v1/doctor/reports/${reportId}/pdf`, {}, { responseType: 'blob' });
+    return response.data;
+  },
+
+  async exportReportCSV(reportId: string): Promise<any> {
+    const response = await apiClient.post(`/api/v1/doctor/reports/${reportId}/csv`);
+    return response.data;
+  }
+};
+
+export const userRepository = {
+  async getProfile(userId: string): Promise<User> {
+    const response = await apiClient.get(`/api/v1/users/${userId}`);
+    return response.data;
+  },
+
+  async updateProfile(userId: string, payload: Partial<User>): Promise<User> {
+    const response = await apiClient.patch(`/api/v1/users/${userId}`, payload);
+    return response.data;
+  },
+};
+

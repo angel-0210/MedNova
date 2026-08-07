@@ -95,27 +95,33 @@ async def ingest_readings(
     alert_service = AlertService(db)
     await alert_service.process_prediction(saved_prediction)
 
-    # 7. Broadcast Telemetry to Hospital Dashboard via WebSockets
-    await manager.broadcast_to_hospital(
-        hospital_id=device.hospital_id,
-        message={
-            "event": "new_telemetry",
-            "data": {
-                "reading_id": saved_reading.reading_id,
-                "patient_id": str(assignment.patient_id),
-                "device_id": str(device.device_id),
-                "timestamp": saved_reading.timestamp.isoformat(),
-                "spo2": float(saved_reading.spo2),
-                "heart_rate": float(saved_reading.heart_rate),
-                "temperature": float(saved_reading.temperature),
-                "prediction": {
-                    "risk_score": risk_score,
-                    "risk_level": saved_prediction.risk_level,
-                    "recommendation": recommendation
-                }
+    # 7. Broadcast Telemetry to Hospital Dashboard & Patient WebSockets
+    telemetry_message = {
+        "event": "new_telemetry",
+        "data": {
+            "reading_id": saved_reading.reading_id,
+            "patient_id": str(assignment.patient_id),
+            "device_id": str(device.device_id),
+            "timestamp": saved_reading.timestamp.isoformat(),
+            "spo2": float(saved_reading.spo2),
+            "heart_rate": float(saved_reading.heart_rate),
+            "temperature": float(saved_reading.temperature),
+            "prediction": {
+                "risk_score": risk_score,
+                "risk_level": saved_prediction.risk_level,
+                "recommendation": recommendation
             }
         }
+    }
+    await manager.broadcast_to_hospital(
+        hospital_id=device.hospital_id,
+        message=telemetry_message
     )
+    await manager.broadcast_to_patient(
+        patient_id=assignment.patient_id,
+        message=telemetry_message
+    )
+
 
     # 8. Record Audit Log for Telemetry Ingestion
     audit_service = AuditService(db)

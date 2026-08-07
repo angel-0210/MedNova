@@ -65,6 +65,10 @@ class UserBase(BaseModel):
     email: EmailStr
     role: str = Field(..., pattern="^(admin|doctor|nurse|attendant)$")
     is_active: bool = True
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    profile_picture: Optional[str] = None
+    license_number: Optional[str] = None
 
 class UserCreate(UserBase):
     hospital_id: uuid.UUID
@@ -75,6 +79,10 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[str] = Field(None, pattern="^(admin|doctor|nurse|attendant)$")
     is_active: Optional[bool] = None
+    department: Optional[str] = None
+    phone: Optional[str] = None
+    profile_picture: Optional[str] = None
+    license_number: Optional[str] = None
 
 class UserResponse(UserBase):
     user_id: uuid.UUID

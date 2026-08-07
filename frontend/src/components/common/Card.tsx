@@ -14,12 +14,48 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const { colors, roundness } = useTheme();
 
+  if (variant === 'neumorphic') {
+    return (
+      <View
+        style={[
+          styles.neumorphicOuter,
+          {
+            borderRadius: roundness.lg,
+            shadowColor: '#FFFFFF',
+            shadowOffset: { width: -4, height: -4 },
+            shadowOpacity: 1,
+            shadowRadius: 10,
+          },
+          style,
+        ]}
+      >
+        <View
+          style={[
+            styles.base,
+            {
+              backgroundColor: colors.background,
+              borderRadius: roundness.lg,
+              shadowColor: '#000000',
+              shadowOffset: { width: 4, height: 4 },
+              shadowOpacity: 0.05,
+              shadowRadius: 10,
+              elevation: 2,
+            }
+          ]}
+          {...props}
+        >
+          {children}
+        </View>
+      </View>
+    );
+  }
+
   const getVariantStyles = () => {
     switch (variant) {
       case 'glass':
         return {
           backgroundColor: colors.surfaceGlass,
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+          borderColor: 'rgba(255, 255, 255, 0.4)',
           borderWidth: 1,
           elevation: 0,
           shadowOpacity: 0,
@@ -33,19 +69,7 @@ export const Card: React.FC<CardProps> = ({
           shadowOpacity: 0,
         };
       default:
-        // Neumorphic style: soft dual shadow simulation in React Native
-        return {
-          backgroundColor: colors.background,
-          borderColor: 'transparent',
-          borderWidth: 0,
-          // iOS Neumorphic shadows
-          shadowColor: '#000000',
-          shadowOffset: { width: 4, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
-          // Android elevation fallback
-          elevation: 2,
-        };
+        return {};
     }
   };
 
@@ -70,7 +94,11 @@ export const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   base: {
-    padding: 16,
+    padding: 24,
     overflow: 'hidden',
   },
+  neumorphicOuter: {
+    backgroundColor: 'transparent',
+  },
 });
+

@@ -1,133 +1,242 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, ActivityIndicator,
+  TouchableOpacity, ActivityIndicator, TextInput
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePatientsQuery } from '@mednova/hooks';
 import { useRBAC } from '../../../contexts/RBACContext';
-import { ChevronRight, Users, UserPlus } from 'lucide-react-native';
+import { ChevronRight, Users, UserPlus, Search, RefreshCw, XCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { theme } from '../../../constants/theme';
+import { Patient } from '@mednova/types';
 
 const VENTILATOR_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  active:  { bg: 'rgba(42,157,143,0.15)', text: '#2a9d8f' },
-  weaning: { bg: 'rgba(247,127,0,0.15)',  text: '#f77f00' },
-  off:     { bg: 'rgba(90,92,94,0.2)',    text: '#5a5c5e' },
+  active:  { bg: theme.colors.statusStable, text: '#ffffff' },
+  weaning: { bg: theme.colors.surfaceContainer,  text: theme.colors.primary },
+  off:     { bg: theme.colors.surfaceContainerHighest,    text: theme.colors.outline },
 };
 
+const FILTER_TABS = [
+  { key: 'all', label: 'All Beds' },
+  { key: 'active', label: 'Active support' },
+  { key: 'weaning', label: 'Weaning Phase' },
+  { key: 'off', label: 'Off Support' }
+];
+
 export default function PatientsScreen() {
-  const { data: patients = [], isLoading } = usePatientsQuery();
   const { canEditPatients } = useRBAC();
 
-  if (isLoading) {
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [limit, setLimit] = useState(20);
+
+  // Debouncing search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Fetching patients query
+  const queryParams = {
+    search: debouncedSearch.trim() || undefined,
+    ventilator_status: statusFilter === 'all' ? undefined : (statusFilter as any),
+    skip: 0,
+    limit: limit
+  };
+
+  const { data: patients = [], isLoading, isError, refetch } = usePatientsQuery(queryParams);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+
+  const handleLoadMore = () => {
+    if (patients.length >= limit) {
+      setLimit(prev => prev + 20);
+    }
+  };
+
+  const renderEmptyState = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.centerPad}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }
+    if (isError) {
+      return (
+        <View style={styles.centerPad}>
+          <XCircle size={40} color={theme.colors.error} />
+          <Text style={[theme.typography.bodyMd, { color: theme.colors.error, fontWeight: '700', marginTop: 8 }]}>Connection Error</Text>
+          <Text style={[theme.typography.bodySm, { color: theme.colors.onSurfaceVariant, textAlign: 'center' }]}>Failed to fetch patient registries.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <Text style={[theme.typography.labelCaps, { color: '#ffffff' }]}>Retry Connection</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#66fcf1" />
+      <View style={styles.emptyContainer}>
+        <Users size={40} color={theme.colors.outline} />
+        <Text style={[theme.typography.bodyMd, { color: theme.colors.primary, fontWeight: '800' }]}>No Patients Found</Text>
+        <Text style={[theme.typography.bodySm, { color: theme.colors.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 32 }]}>
+          No ICU patients match the selected search filters or status.
+        </Text>
       </View>
     );
-  }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* ── Screen Header ───────────────────────────────────────────────────── */}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+      {/* Header bar */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Patient Registry</Text>
-        <Text style={styles.headerSub}>{patients.length} registered patients</Text>
+        <Text style={[theme.typography.headlineLgMobile, { color: theme.colors.primary, fontWeight: '800' }]}>Patient Registry</Text>
+        <Text style={[theme.typography.bodySm, { color: theme.colors.onSurfaceVariant }]}>{patients.length} matching patients</Text>
       </View>
 
-      {/* ── Patient List ────────────────────────────────────────────────────── */}
+      {/* Search Input Container */}
+      <View style={styles.searchBox}>
+        <Search size={18} color={theme.colors.outline} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search by name, bed, ward, status..."
+          placeholderTextColor={theme.colors.outline}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={[theme.typography.labelCaps, { color: theme.colors.outline, fontSize: 10 }]}>CLEAR</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Status Filter Tabs */}
+      <View style={styles.tabContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+          {FILTER_TABS.map(tab => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.tab, isActive && styles.activeTab]}
+                onPress={() => setStatusFilter(tab.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabLabel, theme.typography.labelCaps, { color: isActive ? '#ffffff' : theme.colors.primary }]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Patient List */}
       <FlatList
         data={patients}
         keyExtractor={(item) => item.patient_id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Users size={40} color="#2a2e36" />
-            <Text style={styles.emptyTitle}>No Patients Found</Text>
-            <Text style={styles.emptyText}>No ICU patients have been registered in this hospital yet.</Text>
-          </View>
-        }
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={renderEmptyState()}
         renderItem={({ item }) => {
           const statusStyle = VENTILATOR_STATUS_COLORS[item.ventilator_status] ?? VENTILATOR_STATUS_COLORS.off;
+          const statusLineColor = item.ventilator_status === 'active' ? theme.colors.statusStable : (item.ventilator_status === 'weaning' ? theme.colors.statusCritical : theme.colors.outline);
           return (
             <TouchableOpacity
-              style={styles.card}
+              style={[styles.card, { backgroundColor: theme.colors.backgroundMain, borderColor: theme.colors.outlineVariant }]}
               onPress={() =>
                 router.push({ pathname: '/(app)/patient/[id]', params: { id: item.patient_id } })
               }
               activeOpacity={0.75}
             >
-              {/* Ventilator status accent stripe */}
-              <View style={[styles.stripe, { backgroundColor: statusStyle.text }]} />
-
+              <View style={[styles.stripe, { backgroundColor: statusLineColor }]} />
               <View style={styles.cardContent}>
                 <View style={styles.cardTopRow}>
-                  <Text style={styles.name}>{item.name}</Text>
+                  <Text style={[styles.name, theme.typography.bodyMd, { color: theme.colors.primary, fontWeight: '700' }]} numberOfLines={1}>{item.name}</Text>
                   <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-                    <Text style={[styles.badgeText, { color: statusStyle.text }]}>
+                    <Text style={[styles.badgeText, theme.typography.labelCaps, { color: statusStyle.text, fontSize: 8 }]}>
                       {item.ventilator_status.toUpperCase()}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.meta}>
+                <Text style={[styles.meta, theme.typography.bodySm, { color: theme.colors.onSurfaceVariant }]}>
                   Bed {item.bed_number ?? 'N/A'} · {item.gender} · {item.age} yrs
                 </Text>
               </View>
-
-              <ChevronRight size={16} color="#3a3e46" />
+              <ChevronRight size={16} color={theme.colors.outline} style={styles.cardArrow} />
             </TouchableOpacity>
           );
         }}
       />
 
-      {/* ── FAB: Add Patient (clinicians only) ──────────────────────────────── */}
+      {/* FAB: Add Patient (clinicians only) */}
       {canEditPatients && (
-        <TouchableOpacity style={styles.fab} activeOpacity={0.85}>
-          <UserPlus size={20} color="#0b0c10" strokeWidth={2.5} />
+        <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]} activeOpacity={0.85}>
+          <UserPlus size={20} color={theme.colors.onPrimary} strokeWidth={2.5} />
         </TouchableOpacity>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
+import { ScrollView } from 'react-native-gesture-handler';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0b0c10' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0b0c10' },
-
-  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#ffffff' },
-  headerSub: { fontSize: 12, color: '#5a5c5e', marginTop: 2, fontWeight: '600' },
-
-  list: { padding: 16, paddingTop: 4, paddingBottom: 100 },
-
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', height: 44,
+    backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: theme.colors.outlineVariant,
+    marginHorizontal: 20, paddingHorizontal: 12, marginBottom: 12
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, height: '100%', color: theme.colors.primary, fontSize: 14 },
+  tabContainer: { height: 38, marginBottom: 12 },
+  tabScroll: { paddingHorizontal: 20, gap: 8 },
+  tab: {
+    paddingHorizontal: 12, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: theme.colors.outlineVariant
+  },
+  activeTab: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  tabLabel: { fontSize: 10 },
+  list: { padding: 20, paddingTop: 4, paddingBottom: 100 },
   card: {
-    backgroundColor: '#1a2130',
-    borderRadius: 16, marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
-    overflow: 'hidden',
+    borderRadius: 20, marginBottom: 10, flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, overflow: 'hidden',
+    shadowColor: '#000000', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.02, shadowRadius: 6, elevation: 1
   },
   stripe: { width: 4, alignSelf: 'stretch' },
-  cardContent: { flex: 1, paddingVertical: 14, paddingHorizontal: 14 },
+  cardContent: { flex: 1, paddingVertical: 12, paddingHorizontal: 14 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  name: { fontSize: 15, fontWeight: '700', color: '#ffffff', flex: 1 },
-  badge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  badgeText: { fontSize: 9, fontWeight: '800' },
-  meta: { fontSize: 12, color: '#5a5c5e' },
-
-  emptyContainer: {
-    alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 80, gap: 12,
+  name: { flex: 1 },
+  badge: { borderRadius: 9999, paddingHorizontal: 6, paddingVertical: 1 },
+  badgeText: { fontSize: 8, fontWeight: '800' },
+  meta: { fontSize: 12 },
+  cardArrow: { marginRight: 16 },
+  centerPad: { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' },
+  retryBtn: {
+    backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 8, marginTop: 12
   },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#3a3e46' },
-  emptyText: { fontSize: 13, color: '#3a3e46', textAlign: 'center', paddingHorizontal: 32, lineHeight: 18 },
-
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 },
   fab: {
     position: 'absolute', bottom: 28, right: 20,
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#66fcf1',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#66fcf1', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
-  },
+    shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5
+  }
 });

@@ -1,16 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   patientRepository, alertRepository, 
-  deviceRepository, aiRepository, vitalsRepository 
+  deviceRepository, aiRepository, vitalsRepository,
+  doctorRepository, userRepository
 } from '@mednova/api';
 
 // =========================================================================
 // PATIENT HOOKS
 // =========================================================================
-export const usePatientsQuery = () => {
+export const usePatientsQuery = (params?: { search?: string; ventilator_status?: string; skip?: number; limit?: number }) => {
   return useQuery({
-    queryKey: ['patients'],
-    queryFn: () => patientRepository.listPatients(),
+    queryKey: ['patients', params],
+    queryFn: () => patientRepository.listPatients(params),
     refetchInterval: 10000, // Sync list every 10 seconds
   });
 };
@@ -119,3 +120,186 @@ export const useUnpairDeviceMutation = () => {
     },
   });
 };
+
+// =========================================================================
+// DOCTOR SPECIFIC HOOKS
+// =========================================================================
+
+export const useDoctorDashboardQuery = () => {
+  return useQuery({
+    queryKey: ['doctor', 'dashboard'],
+    queryFn: () => doctorRepository.getDashboard(),
+    refetchInterval: 10000, // Refresh dashboard values periodically
+  });
+};
+
+export const useDoctorPatientsQuery = (params?: { search?: string; ventilator_status?: string; skip?: number; limit?: number }) => {
+  return useQuery({
+    queryKey: ['doctor', 'patients', params],
+    queryFn: () => doctorRepository.listPatients(params),
+    refetchInterval: 15000,
+  });
+};
+
+export const useDoctorPatientDetailQuery = (patientId: string) => {
+  return useQuery({
+    queryKey: ['doctor', 'patient', patientId],
+    queryFn: () => doctorRepository.getPatient(patientId),
+    enabled: !!patientId,
+  });
+};
+
+export const usePatientTimelineQuery = (patientId: string) => {
+  return useQuery({
+    queryKey: ['doctor', 'patient', patientId, 'timeline'],
+    queryFn: () => doctorRepository.getPatientTimeline(patientId),
+    enabled: !!patientId,
+    refetchInterval: 10000,
+  });
+};
+
+export const useDoctorAlertsQuery = (params?: { alert_type?: string; status?: string }) => {
+  return useQuery({
+    queryKey: ['doctor', 'alerts', params],
+    queryFn: () => doctorRepository.listAlerts(params),
+    refetchInterval: 5000,
+  });
+};
+
+export const useDoctorAcknowledgeAlertMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (alertId: string) => doctorRepository.acknowledgeAlert(alertId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+      if (data && data.patient_id) {
+        queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
+      }
+    },
+  });
+};
+
+export const useDoctorResolveAlertMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (alertId: string) => doctorRepository.resolveAlert(alertId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+      if (data && data.patient_id) {
+        queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
+      }
+    },
+  });
+};
+
+export const useAddAlertNoteMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { alertId: string; noteText: string }) => 
+      doctorRepository.addAlertNote(payload.alertId, payload.noteText),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'alerts'] });
+      if (data && data.patient_id) {
+        queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
+      }
+    },
+  });
+};
+
+export const useAddPatientNoteMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { patientId: string; noteText: string }) => 
+      doctorRepository.addPatientNote(payload.patientId, payload.noteText),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', variables.patientId, 'timeline'] });
+    },
+  });
+};
+
+
+export const useLatestDoctorPredictionQuery = (patientId: string) => {
+  return useQuery({
+    queryKey: ['doctor', 'prediction', patientId],
+    queryFn: () => doctorRepository.getLatestPrediction(patientId),
+    enabled: !!patientId,
+    refetchInterval: 15000,
+  });
+};
+
+export const usePredictionHistoryQuery = (patientId: string) => {
+  return useQuery({
+    queryKey: ['doctor', 'prediction', patientId, 'history'],
+    queryFn: () => doctorRepository.getPredictionHistory(patientId),
+    enabled: !!patientId,
+  });
+};
+
+export const useRefreshPredictionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patientId: string) => doctorRepository.refreshPrediction(patientId),
+    onSuccess: (data, patientId) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', patientId, 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', patientId, 'timeline'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+    },
+  });
+};
+
+export const useDoctorReportsQuery = (params?: { patient_id?: string; report_type?: string }) => {
+  return useQuery({
+    queryKey: ['doctor', 'reports', params],
+    queryFn: () => doctorRepository.listReports(params),
+    refetchInterval: 10000,
+  });
+};
+
+export const useGenerateReportMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { patientId: string; reportType: string }) => 
+      doctorRepository.generateReport(payload.patientId, payload.reportType),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+      if (data && data.patient_id) {
+        queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
+      }
+    },
+  });
+};
+
+export const useReportPreviewQuery = (reportId: string) => {
+  return useQuery({
+    queryKey: ['doctor', 'report', reportId, 'preview'],
+    queryFn: () => doctorRepository.getReportPreview(reportId),
+    enabled: !!reportId,
+  });
+};
+
+// =========================================================================
+// USER PROFILE HOOKS
+// =========================================================================
+export const useUserProfileQuery = (userId: string) => {
+  return useQuery({
+    queryKey: ['user', 'profile', userId],
+    queryFn: () => userRepository.getProfile(userId),
+    enabled: !!userId,
+  });
+};
+
+export const useUpdateUserProfileMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { userId: string; data: any }) => 
+      userRepository.updateProfile(payload.userId, payload.data),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['user', 'profile', variables.userId] });
+    },
+  });
+};
+

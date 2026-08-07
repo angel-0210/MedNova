@@ -19,22 +19,22 @@ export const Badge: React.FC<BadgeProps> = ({
     switch (type) {
       case 'critical':
         return {
-          bg: colors.statusCritical,
+          bg: colors.statusCritical, // #FCA311 (Safety Orange)
           text: '#ffffff',
         };
       case 'warning':
         return {
-          bg: colors.secondaryContainer,
-          text: '#000000',
+          bg: colors.surfaceContainer, // #eeeeee (Light Gray)
+          text: colors.statusStable, // #14213D (Deep Navy)
         };
       case 'device':
         return {
-          bg: colors.surfaceContainerHigh,
-          text: colors.primary,
+          bg: colors.surfaceContainerHighest, // #e2e2e2
+          text: colors.primary, // #000a24
         };
       default:
         return {
-          bg: colors.statusStable,
+          bg: colors.statusStable, // #14213D (Deep Navy)
           text: '#ffffff',
         };
     }
@@ -71,10 +71,11 @@ export const Badge: React.FC<BadgeProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     alignSelf: 'flex-start',
     justifyContent: 'center',
     alignItems: 'center',
   },
 });
+

@@ -32,7 +32,7 @@ export const fcmService = {
     messaging().onMessage(async (remoteMessage) => {
       console.log('FCM Foreground message received:', remoteMessage);
       
-      const { notification, data } = remoteMessage;
+      const { notification } = remoteMessage;
       if (notification) {
         Alert.alert(
           notification.title || 'MedNova Alert',
