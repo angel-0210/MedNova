@@ -23,8 +23,8 @@
 // =========================================================================
 
 // Network Credentials
-const char* wifi_ssid     = "YOUR_WIFI_SSID";
-const char* wifi_password = "YOUR_WIFI_PASSWORD";
+const char* wifi_ssid     = "MANMEET";
+const char* wifi_password = "10102020";
 
 // MedNova API Server Configurations
 // Note: If running FastAPI locally, use the local IP address of your host machine (not localhost/127.0.0.1)

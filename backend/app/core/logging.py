@@ -26,13 +26,11 @@ def setup_logging():
 
     if settings.ENVIRONMENT == "production":
         # JSON logs for production aggregation (e.g. ELK, Datadog)
-        processors.append(structlog.processors.JSONRenderer())
         formatter = structlog.stdlib.ProcessorFormatter(
             processor=structlog.processors.JSONRenderer(),
         )
     else:
         # Colored, pretty-printed console logs for development
-        processors.append(structlog.dev.ConsoleRenderer(colors=True))
         formatter = structlog.stdlib.ProcessorFormatter(
             processor=structlog.dev.ConsoleRenderer(colors=True),
         )
