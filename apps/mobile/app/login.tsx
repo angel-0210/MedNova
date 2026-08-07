@@ -37,12 +37,12 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View className="items-center">
+        <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Activity size={32} color="#66fcf1" strokeWidth={2.5} />
           </View>
-          <h2 style={styles.title}>ICU Intel</h2>
-          <p style={styles.subtitle}>Ventilator Telemetry Portal</p>
+          <Text style={styles.title}>ICU Intel</Text>
+          <Text style={styles.subtitle}>Ventilator Telemetry Portal</Text>
         </View>
 
         <View style={styles.form}>
@@ -104,6 +104,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+  },
+  header: {
+    alignItems: 'center',
   },
   logoContainer: {
     height: 64,

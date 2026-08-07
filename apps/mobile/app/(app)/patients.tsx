@@ -40,12 +40,12 @@ export default function PatientsScreen() {
             <View style={styles.cardContent}>
               <View style={styles.header}>
                 <Text style={styles.name}>{item.name}</Text>
-                <span style={[styles.badge, {
+                <Text style={[styles.badge, {
                   backgroundColor: item.ventilator_status === 'active' ? 'rgba(42, 157, 143, 0.15)' : 'rgba(255,255,255,0.05)',
                   color: item.ventilator_status === 'active' ? '#2a9d8f' : '#8f9091'
                 }]}>
                   {item.ventilator_status.toUpperCase()}
-                </span>
+                </Text>
               </View>
               <Text style={styles.details}>
                 Bed {item.bed_number || 'N/A'} • {item.gender} • {item.age} years old

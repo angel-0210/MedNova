@@ -1,6 +1,7 @@
 {
   "name": "@mednova/hooks",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,8 +12,10 @@
   "dependencies": {
     "@mednova/types": "^1.0.0",
     "@mednova/api": "^1.0.0",
-    "@tanstack/react-query": "^5.28.0",
-    "react": "^19.0.0"
+    "@tanstack/react-query": "^5.28.0"
+  },
+  "peerDependencies": {
+    "react": ">=19"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

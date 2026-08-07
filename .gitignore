@@ -24,3 +24,7 @@ __pycache__/
 *.ntvs*
 *.njsproj
 *.sln
+
+# Expo / build output
+.expo/
+dist/

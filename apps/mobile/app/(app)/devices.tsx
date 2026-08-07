@@ -37,12 +37,12 @@ export default function DevicesScreen() {
                 <Wifi size={16} color="#66fcf1" />
                 <Text style={styles.macText}>{item.mac_address}</Text>
               </View>
-              <span style={[styles.statusBadge, {
+              <Text style={[styles.statusBadge, {
                 backgroundColor: item.status === 'online' ? 'rgba(42, 157, 143, 0.15)' : 'rgba(217, 4, 41, 0.15)',
                 color: item.status === 'online' ? '#2a9d8f' : '#d90429'
               }]}>
                 {item.status.toUpperCase()}
-              </span>
+              </Text>
             </View>
 
             <View style={styles.detailsGrid}>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     fontSize: 9,
-    fontWeight: '850',
+    fontWeight: '800',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,

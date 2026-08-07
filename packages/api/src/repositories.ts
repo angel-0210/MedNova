@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from './client.js';
 import { 
   User, Patient, SensorReading, AIPrediction, 
   Alert, Device, DeviceAssignment 
