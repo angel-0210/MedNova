@@ -2,17 +2,19 @@ import uuid
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 # pyrefly: ignore [missing-import]
+from fastapi.security import HTTPAuthorizationCredentials
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
 # pyrefly: ignore [missing-import, missing-module-attribute]
 from supabase import create_client, Client
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.security import get_current_user
+from app.core.security import get_current_user, security_scheme
 from app.core.exceptions import MedNovaException, UnauthorizedException, InvalidCredentialsException, ConflictException, EntityNotFoundException, PermissionDeniedException
 from app.database.session import get_db
 from app.database.models import User, Hospital
 from app.database.repositories.entities import UserRepository, HospitalRepository
-from app.schemas.auth import Token, LoginRequest, RegisterRequest
+from app.schemas.auth import Token, LoginRequest, RegisterRequest, RefreshRequest, PasswordResetRequest
 from app.schemas.entities import UserResponse
 from app.services.audit_service import AuditService
 
@@ -47,9 +49,9 @@ async def register(
     if existing_user:
         raise ConflictException("Email is already registered", "EMAIL_EXISTS")
 
+    # 3. Create user in Supabase Auth
+    # In Supabase Auth, we pass user_metadata so that roles/hospital_id are encoded inside JWT
     try:
-        # 3. Create user in Supabase Auth
-        # In Supabase Auth, we pass user_metadata so that roles/hospital_id are encoded inside JWT
         auth_response = supabase_client.auth.sign_up({
             "email": payload.email,
             "password": payload.password,
@@ -61,15 +63,19 @@ async def register(
                 }
             }
         })
-        
-        if not auth_response.user:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to register user in Auth provider"
-            )
+    except Exception as e:
+        logger.exception("Auth provider registration failed", email=payload.email, error=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed")
 
-        auth_user_id = uuid.UUID(auth_response.user.id)
+    if not auth_response.user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to register user in Auth provider"
+        )
 
+    auth_user_id = uuid.UUID(auth_response.user.id)
+
+    try:
         # 4. Insert User Profile into our database
         new_user = User(
             user_id=auth_user_id,
@@ -99,10 +105,18 @@ async def register(
         return created_user
 
     except Exception as e:
-        logger.exception("User registration failed", error=str(e))
+        # Without this the auth user survives with no public.users row, and every later
+        # login succeeds at Supabase then dies on USER_PROFILE_NOT_FOUND.
+        # ponytail: best-effort rollback; a crash between the two calls still orphans the
+        # auth user -- add a reconcile job if that shows up in practice.
+        logger.exception("User profile creation failed, rolling back auth user", error=str(e))
+        try:
+            supabase_client.auth.admin.delete_user(str(auth_user_id))
+        except Exception as cleanup_error:
+            logger.error("Failed to roll back auth user", user_id=str(auth_user_id), error=str(cleanup_error))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Registration failed: {str(e)}"
+            detail="Registration failed"
         )
 
 
@@ -164,6 +178,7 @@ async def login(
 @router.post("/logout")
 async def logout(
     request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -171,8 +186,11 @@ async def logout(
     Logs out the current user session.
     """
     try:
-        supabase_client.auth.sign_out()
-        
+        # sign_out() on the shared server client has no session attached -- it revoked
+        # nothing. Revoke the caller's own token so the refresh token dies with it.
+        supabase_client.auth.admin.sign_out(credentials.credentials)
+
+
         audit_service = AuditService(db)
         client_ip = request.client.host if request.client else "unknown"
         await audit_service.log_action(
@@ -192,14 +210,14 @@ async def logout(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str,
+    payload: RefreshRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Refreshes the authenticated session using a refresh token.
     """
     try:
-        auth_response = supabase_client.auth.refresh_session(refresh_token)
+        auth_response = supabase_client.auth.refresh_session(payload.refresh_token)
         if not auth_response.session:
             raise UnauthorizedException("Invalid refresh token", "INVALID_REFRESH_TOKEN")
             
@@ -222,18 +240,15 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @router.post("/reset-password")
 async def reset_password(
-    email: str,
+    payload: PasswordResetRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Initiates password reset via Supabase Auth.
     """
     try:
-        supabase_client.auth.reset_password_for_email(email)
-        return {"success": True, "message": "Password reset email sent successfully."}
+        supabase_client.auth.reset_password_for_email(payload.email)
     except Exception as e:
-        logger.error("Password reset request failed", email=email, error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to initiate password reset: {str(e)}"
-        )
+        # Never leak whether the address exists -- log it, answer the same either way.
+        logger.error("Password reset request failed", email=payload.email, error=str(e))
+    return {"success": True, "message": "If that email is registered, a reset link has been sent."}

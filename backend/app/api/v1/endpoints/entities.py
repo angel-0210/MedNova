@@ -83,8 +83,9 @@ async def get_hospital(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Enforce multi-tenancy: normal users can only fetch their own hospital
-    if current_user.role != "admin" and current_user.hospital_id != hospital_id:
+    # Enforce multi-tenancy. Admins are hospital-scoped too -- every other endpoint
+    # filters by current_user.hospital_id, so exempting them here was a tenant leak.
+    if current_user.hospital_id != hospital_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this hospital's data")
         
     hospital_repo = HospitalRepository(db)

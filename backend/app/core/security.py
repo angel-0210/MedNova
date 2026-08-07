@@ -64,14 +64,11 @@ class JWKSCache:
 
 jwks_cache = JWKSCache()
 
-async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)) -> TokenPayload:
+async def decode_supabase_token(token: str) -> TokenPayload:
     """
-    Verifies the JWT signature, audience, and expiry locally using RS256 with the Supabase JWKS.
+    Verifies the JWT signature, issuer, audience, and expiry locally against the Supabase JWKS.
+    Shared by the HTTP dependency and the WebSocket handshake so both accept the same algorithms.
     """
-    if not credentials:
-        raise UnauthorizedException("Missing Authorization credentials", "MISSING_CREDENTIALS")
-    
-    token = credentials.credentials
     try:
         # Get token header to extract the kid (Key ID)
         header = jwt.get_unverified_header(token)
@@ -96,9 +93,10 @@ async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depend
             key,
             algorithms=[algorithm],
             audience=settings.JWT_AUDIENCE,
+            issuer=f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1",
             options={"verify_aud": True, "verify_signature": True}
         )
-        
+
         user_id = payload.get("sub")
         if not user_id:
             raise UnauthorizedException("Invalid token payload: missing subject", "INVALID_TOKEN_SUBJECT")
@@ -119,6 +117,12 @@ async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depend
         raise UnauthorizedException(f"Invalid authentication token: {str(e)}", "INVALID_TOKEN")
 
 
+async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)) -> TokenPayload:
+    if not credentials:
+        raise UnauthorizedException("Missing Authorization credentials", "MISSING_CREDENTIALS")
+    return await decode_supabase_token(credentials.credentials)
+
+
 async def get_current_user(
     payload: TokenPayload = Depends(verify_supabase_jwt),
     db: AsyncSession = Depends(get_db)
@@ -127,7 +131,10 @@ async def get_current_user(
     FastAPI dependency that returns the current authenticated User model from the database.
     """
     user_repo = UserRepository(db)
-    user_uuid = uuid.UUID(payload.sub)
+    try:
+        user_uuid = uuid.UUID(payload.sub)
+    except ValueError:
+        raise UnauthorizedException("Invalid token subject", "INVALID_TOKEN_SUBJECT")
     user = await user_repo.get_by_id(user_uuid)
     
     if not user:
@@ -146,10 +153,12 @@ class RequireRole:
     FastAPI dependency to restrict endpoint access to specific roles (RBAC).
     """
     def __init__(self, allowed_roles: List[str]):
-        self.allowed_roles = allowed_roles
+        # Roles are free-text in the DB, so compare case/whitespace-insensitively --
+        # a seeded "Admin" must not silently lose admin access.
+        self.allowed_roles = [r.strip().lower() for r in allowed_roles]
 
     def __call__(self, current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in self.allowed_roles:
+        if (current_user.role or "").strip().lower() not in self.allowed_roles:
             logger.warn(
                 "RBAC access denied", 
                 user_id=str(current_user.user_id), 

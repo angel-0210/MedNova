@@ -1,7 +1,11 @@
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Literal, Optional
 import uuid
+
+# Roles a user may pick for themselves. "admin" is deliberately absent -- self-service
+# registration must not be able to mint an admin; admins are provisioned out of band.
+SelfServiceRole = Literal["doctor", "nurse", "attendant"]
 
 from app.schemas.entities import UserResponse
 
@@ -27,5 +31,11 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str
-    role: str  # admin, doctor, nurse, attendant
+    role: SelfServiceRole
     hospital_code: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr

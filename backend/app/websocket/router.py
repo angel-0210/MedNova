@@ -1,11 +1,8 @@
 import uuid
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-# pyrefly: ignore [missing-import, missing-source-for-stubs]
-from jose import jwt
-from app.core.config import settings
 from app.core.logging import logger
-from app.core.security import jwks_cache
+from app.core.security import decode_supabase_token
 from app.websocket.connection_manager import manager
 
 router = APIRouter()
@@ -17,25 +14,9 @@ async def websocket_endpoint(
 ):
     # 1. Authenticate the WebSocket connection via query token
     try:
-        header = jwt.get_unverified_header(token)
-        kid = header.get("kid")
-        if not kid:
-            await websocket.close(code=1008, reason="Missing kid header")
-            return
-            
-        key = await jwks_cache.get_key_by_kid(kid)
-        if not key:
-            await websocket.close(code=1008, reason="Invalid kid signature")
-            return
+        payload = await decode_supabase_token(token)
 
-        payload = jwt.decode(
-            token,
-            key,
-            algorithms=[settings.JWT_ALGORITHM],
-            audience=settings.JWT_AUDIENCE
-        )
-        
-        hospital_id_str = payload.get("user_metadata", {}).get("hospital_id")
+        hospital_id_str = payload.hospital_id
         if not hospital_id_str:
             await websocket.close(code=1008, reason="Missing hospital affiliation")
             return
