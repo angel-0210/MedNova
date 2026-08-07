@@ -39,16 +39,16 @@ export const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL9jzPGC__Q1EgdkL1-ZIK676SXnnFnAvqyKxxTaDt3OuaR30FBwty5DudtuLXrMzc1xgwTcq9n5LFUpOqswww-QRtVKF0_9N0jG0Cq37p0u_R-O3kWRGb-pdj6Cr0zg2vD0TAqf1yxqxJGc3Uzn4yuaj0JGEspmWaJBS7hrOfRxXxbYzXOHJRlipb4UgW5Q6jTuZ05AcJrMcvF8QBabo1tsYo_vg1Tryruo9LpXc_f3vToQabcDU_dg' }}
             style={styles.avatar}
           />
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>ICU Intel</Text>
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>MedNova</Text>
         </View>
-        
+
         <TouchableOpacity style={styles.appBarIconButton}>
           <Search size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
         {/* Patient Header Card */}
         <TouchableOpacity activeOpacity={0.9} onPress={handleSelectPatient}>
           <View style={styles.patientInfoBlock}>
@@ -67,11 +67,11 @@ export const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
             {/* Quick Action Buttons */}
             <View style={styles.actionsRow}>
               {/* Freeze Waveform */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.historyButton, 
+                  styles.historyButton,
                   isFrozen ? { backgroundColor: '#FFA515', borderColor: '#FFA515' } : null
-                ]} 
+                ]}
                 onPress={() => setIsFrozen(!isFrozen)}
                 activeOpacity={0.8}
               >
@@ -82,8 +82,8 @@ export const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
               </TouchableOpacity>
 
               {/* Capture Event */}
-              <TouchableOpacity 
-                style={[styles.captureButton, { backgroundColor: colors.primary }]} 
+              <TouchableOpacity
+                style={[styles.captureButton, { backgroundColor: colors.primary }]}
                 onPress={handleCaptureEvent}
                 activeOpacity={0.8}
               >
@@ -104,7 +104,7 @@ export const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
                 {/* Grid Lines */}
                 <Line x1="10" y1="20" x2="310" y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="3,3" />
                 <Line x1="10" y1="45" x2="310" y2="45" stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="3,3" />
-                
+
                 {/* Pressure Waveform Curve */}
                 <Path
                   d="M 10,48 L 22,15 L 47,15 L 59,48 L 81,48 L 93,15 L 118,15 L 130,48 L 152,48 L 164,15 L 189,15 L 201,48 L 223,48 L 235,15 L 260,15 L 272,48 L 294,48 L 305,15"

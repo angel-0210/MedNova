@@ -50,7 +50,7 @@ export const Login: React.FC<{ navigation: any }> = ({ navigation }) => {
         <View style={styles.header}>
           <View style={[styles.logoMark, { borderColor: colors.secondaryContainer }]} />
           <Text style={[typography.headlineLg, { color: colors.primary, fontWeight: 'bold', marginTop: 16 }]}>
-            ICU Intel
+            MedNova
           </Text>
           <Text style={[typography.bodySm, { color: colors.onSurfaceVariant, marginTop: 4 }]}>
             Smart Ventilator Monitoring Platform

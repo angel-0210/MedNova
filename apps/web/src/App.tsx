@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   usePatientsQuery, useAlertsQuery, useDevicesQuery,
   useAcknowledgeAlertMutation, useResolveAlertMutation,
   usePairDeviceMutation, useUnpairDeviceMutation
 } from '@mednova/hooks';
 import { authRepository, setOnSessionExpired } from '@mednova/api';
 import { parseAPIError, formatDateTime } from '@mednova/utils';
-import { 
-  Activity, Users, ShieldAlert, Wifi, ShieldCheck, 
+import {
+  Activity, Users, ShieldAlert, Wifi, ShieldCheck,
   LogOut, User as UserIcon, CheckCircle2, ChevronRight, X, Info
 } from 'lucide-react';
 import { User, Patient } from '@mednova/types';
@@ -18,11 +18,11 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   // Navigation / Tabs state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'devices' | 'alerts'>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  
+
   // Device pairing form state
   const [selectedPairPatientId, setSelectedPairPatientId] = useState('');
   const [selectedPairDeviceId, setSelectedPairDeviceId] = useState('');
@@ -31,7 +31,7 @@ export default function App() {
   const { data: patients = [], isLoading: loadingPatients, refetch: refetchPatients } = usePatientsQuery();
   const { data: alerts = [], isLoading: loadingAlerts } = useAlertsQuery();
   const { data: devices = [], isLoading: loadingDevices } = useDevicesQuery();
-  
+
   const acknowledgeAlert = useAcknowledgeAlertMutation();
   const resolveAlert = useResolveAlertMutation();
   const pairDevice = usePairDeviceMutation();
@@ -44,7 +44,7 @@ export default function App() {
     if (token && storedUser) {
       setUser(JSON.parse(storedUser));
     }
-    
+
     setOnSessionExpired(() => {
       handleLogout();
     });
@@ -88,16 +88,16 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-background">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary opacity-10 blur-[120px] rounded-full pulse-bg" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary opacity-15 blur-[120px] rounded-full pulse-bg" />
-        
+
         <div className="w-full max-w-md glass-panel p-8 rounded-2xl glow-border flex flex-col items-center">
           <div className="h-16 w-16 bg-gradient-to-tr from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg border border-primary/20 rotate-12">
             <Activity className="h-10 w-10 text-background stroke-[2.5]" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight mt-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-            ICU Intel
+            MedNova
           </h1>
           <p className="text-textDim text-sm mt-1">Smart Ventilator Telemetry System</p>
-          
+
           <form className="w-full mt-8 space-y-5" onSubmit={handleLogin}>
             {authError && (
               <div className="p-3 bg-statusCritical/20 border border-statusCritical/30 text-statusCritical text-xs rounded-lg text-center">
@@ -106,7 +106,7 @@ export default function App() {
             )}
             <div>
               <label className="block text-xs font-semibold text-textDim uppercase tracking-wider mb-2">Hospital Email</label>
-              <input 
+              <input
                 type="email"
                 required
                 className="w-full bg-[#0d131a] border border-[#2f3b4c] rounded-xl px-4 py-3 text-white placeholder-textDim/50 focus:outline-none focus:border-primary transition-all text-sm"
@@ -117,7 +117,7 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-textDim uppercase tracking-wider mb-2">Password</label>
-              <input 
+              <input
                 type="password"
                 required
                 className="w-full bg-[#0d131a] border border-[#2f3b4c] rounded-xl px-4 py-3 text-white placeholder-textDim/50 focus:outline-none focus:border-primary transition-all text-sm"
@@ -126,7 +126,7 @@ export default function App() {
                 onChange={e => setPassword(e.target.value)}
               />
             </div>
-            <button 
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-primary to-secondary text-background font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/10 mt-2 text-sm flex justify-center items-center gap-2"
@@ -150,32 +150,32 @@ export default function App() {
             <Activity className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">ICU Intel Web</h1>
+            <h1 className="text-xl font-bold tracking-tight text-white">MedNova Web</h1>
             <p className="text-[10px] text-primary/70 tracking-widest uppercase font-semibold">Ventilator Monitor</p>
           </div>
         </div>
 
         {/* Tab selection */}
         <nav className="hidden md:flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
-          <button 
+          <button
             onClick={() => setActiveTab('dashboard')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'dashboard' ? 'bg-primary text-background' : 'text-textDim hover:text-white'}`}
           >
             Dashboard
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('patients')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'patients' ? 'bg-primary text-background' : 'text-textDim hover:text-white'}`}
           >
             Patient Registry
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('devices')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'devices' ? 'bg-primary text-background' : 'text-textDim hover:text-white'}`}
           >
             IoT Devices
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('alerts')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all relative ${activeTab === 'alerts' ? 'bg-primary text-background' : 'text-textDim hover:text-white'}`}
           >
@@ -199,7 +199,7 @@ export default function App() {
               <UserIcon className="h-5 w-5 text-textMain" />
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="p-2.5 rounded-xl bg-statusCritical/15 border border-statusCritical/20 text-statusCritical hover:bg-statusCritical/20 transition-all"
             title="Log Out"
@@ -221,7 +221,7 @@ export default function App() {
                 <p className="text-xs text-textDim">{criticalAlerts} critical ventilator alerts require immediate staff resolution.</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setActiveTab('alerts')}
               className="bg-statusCritical text-white font-bold text-xs px-4 py-2 rounded-lg hover:opacity-95 transition-all"
             >
@@ -243,7 +243,7 @@ export default function App() {
                     {activeVentilators} <span className="text-base text-textDim font-medium">/ {patients.length}</span>
                   </h3>
                   <div className="w-48 bg-black/40 h-1.5 rounded-full overflow-hidden mt-3">
-                    <div 
+                    <div
                       className="bg-primary h-full rounded-full transition-all duration-500"
                       style={{ width: `${patients.length > 0 ? (activeVentilators / patients.length) * 100 : 0}%` }}
                     />
@@ -301,10 +301,10 @@ export default function App() {
                     </div>
                     {/* Pulsing SVG line */}
                     <svg className="w-full h-16 text-statusCritical stroke-current" viewBox="0 0 500 60">
-                      <path 
-                        d="M 0 30 L 50 30 L 60 10 L 70 50 L 80 30 L 150 30 L 160 10 L 170 50 L 180 30 L 250 30 L 260 10 L 270 50 L 280 30 L 350 30 L 360 10 L 370 50 L 380 30 L 450 30 L 460 10 L 470 50 L 480 30 L 500 30" 
-                        fill="none" 
-                        strokeWidth="2" 
+                      <path
+                        d="M 0 30 L 50 30 L 60 10 L 70 50 L 80 30 L 150 30 L 160 10 L 170 50 L 180 30 L 250 30 L 260 10 L 270 50 L 280 30 L 350 30 L 360 10 L 370 50 L 380 30 L 450 30 L 460 10 L 470 50 L 480 30 L 500 30"
+                        fill="none"
+                        strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -318,10 +318,10 @@ export default function App() {
                     </div>
                     {/* Simulated Waveform SVG */}
                     <svg className="w-full h-16 text-secondary stroke-current" viewBox="0 0 500 60">
-                      <path 
-                        d="M 0 30 Q 15 10 30 30 T 60 30 T 90 30 T 120 30 T 150 30 T 180 30 T 210 30 T 240 30 T 270 30 T 300 30 T 330 30 T 360 30 T 390 30 T 420 30 T 450 30 T 480 30 T 500 30" 
-                        fill="none" 
-                        strokeWidth="2" 
+                      <path
+                        d="M 0 30 Q 15 10 30 30 T 60 30 T 90 30 T 120 30 T 150 30 T 180 30 T 210 30 T 240 30 T 270 30 T 300 30 T 330 30 T 360 30 T 390 30 T 420 30 T 450 30 T 480 30 T 500 30"
+                        fill="none"
+                        strokeWidth="2"
                         strokeLinecap="round"
                       />
                     </svg>
@@ -334,11 +334,11 @@ export default function App() {
                 <div>
                   <h3 className="text-base font-bold text-white border-b border-white/5 pb-4 mb-4">Device Actions</h3>
                   <p className="text-xs text-textDim mb-4">Quickly link an active smart sensor or ventilator connection gateway here.</p>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[10px] text-textDim uppercase tracking-widest font-semibold mb-1">Select Patient</label>
-                      <select 
+                      <select
                         className="w-full bg-[#0d131a] border border-[#2f3b4c] rounded-lg p-2.5 text-white text-xs"
                         value={selectedPairPatientId}
                         onChange={e => setSelectedPairPatientId(e.target.value)}
@@ -354,7 +354,7 @@ export default function App() {
 
                     <div>
                       <label className="block text-[10px] text-textDim uppercase tracking-widest font-semibold mb-1">Select Device</label>
-                      <select 
+                      <select
                         className="w-full bg-[#0d131a] border border-[#2f3b4c] rounded-lg p-2.5 text-white text-xs"
                         value={selectedPairDeviceId}
                         onChange={e => setSelectedPairDeviceId(e.target.value)}
@@ -370,7 +370,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={async () => {
                     if (!selectedPairPatientId || !selectedPairDeviceId) return;
                     try {
@@ -399,8 +399,8 @@ export default function App() {
             <div className="glass-panel p-6 rounded-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-base font-bold text-white">Telemetry Registry Overview</h3>
-                <button 
-                  onClick={() => setActiveTab('patients')} 
+                <button
+                  onClick={() => setActiveTab('patients')}
                   className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"
                 >
                   View All Patients <ChevronRight className="h-3 w-3" />
@@ -430,11 +430,10 @@ export default function App() {
                           <td className="py-4.5 font-bold text-white">{patient.name}</td>
                           <td className="py-4.5 text-textDim">{patient.bed_number || 'N/A'}</td>
                           <td className="py-4.5">
-                            <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${
-                              patient.ventilator_status === 'active' ? 'bg-statusStable/15 text-statusStable' :
-                              patient.ventilator_status === 'weaning' ? 'bg-statusWarning/15 text-statusWarning' :
-                              'bg-white/10 text-textDim'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${patient.ventilator_status === 'active' ? 'bg-statusStable/15 text-statusStable' :
+                                patient.ventilator_status === 'weaning' ? 'bg-statusWarning/15 text-statusWarning' :
+                                  'bg-white/10 text-textDim'
+                              }`}>
                               {patient.ventilator_status}
                             </span>
                           </td>
@@ -444,7 +443,7 @@ export default function App() {
                           </td>
                           <td className="py-4.5 font-bold text-primary">Normal (15%)</td>
                           <td className="py-4.5 text-right">
-                            <button 
+                            <button
                               onClick={() => setSelectedPatientId(patient.patient_id)}
                               className="bg-surface border border-white/10 hover:border-primary/50 text-white font-semibold py-1 px-3 rounded-lg transition-all"
                             >
@@ -467,7 +466,7 @@ export default function App() {
               <h2 className="text-xl font-bold text-white">Patient Registry</h2>
               <p className="text-xs text-textDim">View status, settings, and incident history of ICU occupants.</p>
             </div>
-            
+
             {loadingPatients ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -482,11 +481,10 @@ export default function App() {
                           <h4 className="font-bold text-white text-base">{patient.name}</h4>
                           <p className="text-xs text-textDim mt-1">Bed {patient.bed_number || 'N/A'} • {patient.gender} • {patient.age} yrs</p>
                         </div>
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
-                          patient.ventilator_status === 'active' ? 'bg-statusStable/15 text-statusStable' :
-                          patient.ventilator_status === 'weaning' ? 'bg-statusWarning/15 text-statusWarning' :
-                          'bg-white/10 text-textDim'
-                        }`}>
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${patient.ventilator_status === 'active' ? 'bg-statusStable/15 text-statusStable' :
+                            patient.ventilator_status === 'weaning' ? 'bg-statusWarning/15 text-statusWarning' :
+                              'bg-white/10 text-textDim'
+                          }`}>
                           {patient.ventilator_status}
                         </span>
                       </div>
@@ -503,7 +501,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => setSelectedPatientId(patient.patient_id)}
                       className="w-full bg-primary/10 border border-primary/20 text-primary font-bold text-xs py-2.5 rounded-xl hover:bg-primary hover:text-background transition-all mt-6"
                     >
@@ -548,18 +546,17 @@ export default function App() {
                         <td className="py-4 text-textDim font-mono">{device.connection_code}</td>
                         <td className="py-4 font-bold text-white">{device.battery_level ? `${device.battery_level}%` : 'N/A'}</td>
                         <td className="py-4">
-                          <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${
-                            device.status === 'online' ? 'bg-statusStable/15 text-statusStable' :
-                            device.status === 'offline' ? 'bg-statusCritical/15 text-statusCritical' :
-                            'bg-statusWarning/15 text-statusWarning'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${device.status === 'online' ? 'bg-statusStable/15 text-statusStable' :
+                              device.status === 'offline' ? 'bg-statusCritical/15 text-statusCritical' :
+                                'bg-statusWarning/15 text-statusWarning'
+                            }`}>
                             {device.status}
                           </span>
                         </td>
                         <td className="py-4 text-textDim">{device.firmware_version || 'N/A'}</td>
                         <td className="py-4 text-textDim">{formatDateTime(device.last_ping)}</td>
                         <td className="py-4 text-right">
-                          <button 
+                          <button
                             onClick={async () => {
                               try {
                                 await unpairDevice.mutateAsync(device.device_id);
@@ -603,13 +600,11 @@ export default function App() {
                   </div>
                 ) : (
                   alerts.map(alert => (
-                    <div key={alert.alert_id} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                      alert.alert_type === 'critical' ? 'bg-statusCritical/10 border-statusCritical/30' : 'bg-statusWarning/10 border-statusWarning/30'
-                    }`}>
+                    <div key={alert.alert_id} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${alert.alert_type === 'critical' ? 'bg-statusCritical/10 border-statusCritical/30' : 'bg-statusWarning/10 border-statusWarning/30'
+                      }`}>
                       <div className="flex items-start gap-4">
-                        <div className={`p-2.5 rounded-xl mt-0.5 ${
-                          alert.alert_type === 'critical' ? 'bg-statusCritical/15 text-statusCritical' : 'bg-statusWarning/15 text-statusWarning'
-                        }`}>
+                        <div className={`p-2.5 rounded-xl mt-0.5 ${alert.alert_type === 'critical' ? 'bg-statusCritical/15 text-statusCritical' : 'bg-statusWarning/15 text-statusWarning'
+                          }`}>
                           <ShieldAlert className="h-6 w-6" />
                         </div>
                         <div>
@@ -628,14 +623,14 @@ export default function App() {
 
                       <div className="flex items-center gap-3">
                         {alert.status === 'pending' && (
-                          <button 
+                          <button
                             onClick={() => acknowledgeAlert.mutate(alert.alert_id)}
                             className="bg-statusWarning text-background font-bold text-xs px-4.5 py-2.5 rounded-xl hover:opacity-90 transition-all"
                           >
                             Acknowledge
                           </button>
                         )}
-                        <button 
+                        <button
                           onClick={() => resolveAlert.mutate(alert.alert_id)}
                           className="bg-statusStable text-background font-bold text-xs px-4.5 py-2.5 rounded-xl hover:opacity-90 transition-all"
                         >
@@ -655,7 +650,7 @@ export default function App() {
       {selectedPatientId && selectedPatient && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-panel max-w-2xl w-full rounded-3xl p-6 glow-border relative animate-in fade-in zoom-in-95 duration-200">
-            <button 
+            <button
               onClick={() => setSelectedPatientId(null)}
               className="absolute top-5 right-5 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-textDim hover:text-white transition-all"
             >
@@ -697,7 +692,7 @@ export default function App() {
 
               <div className="space-y-4">
                 <h4 className="text-xs uppercase tracking-widest text-textDim font-bold border-b border-white/5 pb-2">AI Forecasting Prediction</h4>
-                
+
                 <div className="bg-gradient-to-tr from-primary/10 to-secondary/10 border border-primary/20 p-5 rounded-2xl space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-white">Ventilator Weaning Risk</span>
@@ -713,7 +708,7 @@ export default function App() {
             </div>
 
             <div className="mt-8 pt-4 border-b border-white/5 flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setSelectedPatientId(null)}
                 className="bg-primary text-background font-bold text-xs px-5 py-3 rounded-xl hover:opacity-90 transition-all"
               >

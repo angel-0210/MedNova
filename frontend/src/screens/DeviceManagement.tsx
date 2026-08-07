@@ -146,7 +146,7 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
             <Text style={styles.calibrationLabel}>Calibration</Text>
             <View style={styles.progressBarTrack}>
               <View style={[
-                styles.progressBarFill, 
+                styles.progressBarFill,
                 { width: `${meta.progress * 100}%`, backgroundColor: meta.progressColor }
               ]} />
             </View>
@@ -171,9 +171,9 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL9jzPGC__Q1EgdkL1-ZIK676SXnnFnAvqyKxxTaDt3OuaR30FBwty5DudtuLXrMzc1xgwTcq9n5LFUpOqswww-QRtVKF0_9N0jG0Cq37p0u_R-O3kWRGb-pdj6Cr0zg2vD0TAqf1yxqxJGc3Uzn4yuaj0JGEspmWaJBS7hrOfRxXxbYzXOHJRlipb4UgW5Q6jTuZ05AcJrMcvF8QBabo1tsYo_vg1Tryruo9LpXc_f3vToQabcDU_dg' }}
             style={styles.avatar}
           />
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>ICU Intel</Text>
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>MedNova</Text>
         </View>
-        
+
         <TouchableOpacity style={styles.appBarIconButton}>
           <Search size={22} color={colors.primary} />
         </TouchableOpacity>
@@ -185,7 +185,7 @@ export const DeviceManagement: React.FC<{ navigation: any }> = ({ navigation }) 
         <Text style={styles.screenSubtitleText}>Monitor and manage connected ICU equipment.</Text>
 
         {canPairDevices && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.registerBtn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('BLEPairing')}
             activeOpacity={0.85}

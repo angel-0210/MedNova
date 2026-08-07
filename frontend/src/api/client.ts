@@ -1,8 +1,22 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { keychainService } from '../services/keychainService';
 
-// Target the local FastAPI backend (usually http://10.0.2.2:8000 for Android emulator or http://localhost:8000 for iOS)
-const BASE_URL = 'http://10.0.2.2:8000';
+// Target the local FastAPI backend dynamically (supporting both simulators and physical devices)
+const getBaseApiUrl = () => {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return `http://${host}:8000`;
+    }
+  }
+  return Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
+};
+
+const BASE_URL = getBaseApiUrl();
+console.log('[Frontend] Configured API Base URL:', BASE_URL);
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,

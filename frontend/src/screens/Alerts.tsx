@@ -84,10 +84,10 @@ export const Alerts: React.FC = () => {
     const meta = getAlertMetadata(item);
 
     return (
-      <Card 
-        variant="neumorphic" 
+      <Card
+        variant="neumorphic"
         style={[
-          styles.alertCard, 
+          styles.alertCard,
           { borderLeftColor: meta.leftAccent }
         ]}
       >
@@ -97,13 +97,13 @@ export const Alerts: React.FC = () => {
               <View style={[
                 styles.iconCircle,
                 item.alert_type === 'device' || item.alert_type === 'low'
-                  ? { backgroundColor: '#F1F5F9' } 
+                  ? { backgroundColor: '#F1F5F9' }
                   : { backgroundColor: 'rgba(255, 165, 21, 0.1)' }
               ]}>
                 {meta.icon}
               </View>
               <Text style={[styles.bedTitleText, { color: colors.primary }]}>{p.bed}</Text>
-              
+
               <View style={[styles.statusChip, { backgroundColor: meta.badgeBg }]}>
                 <Text style={[
                   styles.statusChipText,
@@ -193,7 +193,7 @@ export const Alerts: React.FC = () => {
           type: 'system',
           title: 'System Update Scheduled',
           time: '08:00 AM',
-          message: 'ICU Intel v2.4.1 will be deployed at 02:00 AM tomorrow. Brief downtime (approx 5 mins) expected. Read release notes for details.',
+          message: 'MedNova v2.4.1 will be deployed at 02:00 AM tomorrow. Brief downtime (approx 5 mins) expected. Read release notes for details.',
           icon: <Smartphone size={18} color="#64748B" />,
           iconBg: '#F1F5F9',
           leftAccent: null,
@@ -244,9 +244,9 @@ export const Alerts: React.FC = () => {
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCL9jzPGC__Q1EgdkL1-ZIK676SXnnFnAvqyKxxTaDt3OuaR30FBwty5DudtuLXrMzc1xgwTcq9n5LFUpOqswww-QRtVKF0_9N0jG0Cq37p0u_R-O3kWRGb-pdj6Cr0zg2vD0TAqf1yxqxJGc3Uzn4yuaj0JGEspmWaJBS7hrOfRxXxbYzXOHJRlipb4UgW5Q6jTuZ05AcJrMcvF8QBabo1tsYo_vg1Tryruo9LpXc_f3vToQabcDU_dg' }}
             style={styles.avatar}
           />
-          <Text style={[styles.headerTitle, { color: colors.primary }]}>ICU Intel</Text>
+          <Text style={[styles.headerTitle, { color: colors.primary }]}>MedNova</Text>
         </View>
-        
+
         <TouchableOpacity style={styles.appBarIconButton}>
           <Search size={22} color={colors.primary} />
         </TouchableOpacity>
@@ -255,7 +255,7 @@ export const Alerts: React.FC = () => {
       {/* Segment view switcher control */}
       <View style={styles.segmentContainer}>
         <View style={styles.segmentTrack}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.segmentTab, activeSegment === 'active' ? styles.segmentTabActive : null]}
             onPress={() => setActiveSegment('active')}
           >
@@ -263,7 +263,7 @@ export const Alerts: React.FC = () => {
               Active Alerts
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.segmentTab, activeSegment === 'center' ? styles.segmentTabActive : null]}
             onPress={() => setActiveSegment('center')}
           >
@@ -333,7 +333,7 @@ export const Alerts: React.FC = () => {
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {notificationGroups.map((group) => {
               // Filter based on Priority switch
-              const filteredData = priorityOnly 
+              const filteredData = priorityOnly
                 ? group.data.filter(item => item.type === 'critical_alert')
                 : group.data;
 
@@ -347,7 +347,7 @@ export const Alerts: React.FC = () => {
                   </View>
 
                   {filteredData.map((item) => (
-                    <Card 
+                    <Card
                       key={item.id}
                       variant="neumorphic"
                       style={[

@@ -30,7 +30,6 @@ import { Help } from '../screens/Help';
 import { About } from '../screens/About';
 
 import { useTheme } from '../theme/ThemeProvider';
-import { RoleGuard } from './RoleGuard';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 const AuthStack = createStackNavigator<AuthStackParamList>();
@@ -116,19 +115,9 @@ export const AppTabs = () => {
       <Tab.Screen name="Dashboard" component={DashboardNavigator} />
       <Tab.Screen name="Patients" component={PatientNavigator} />
       <Tab.Screen name="Alerts" component={AlertsNavigator} />
-      <Tab.Screen 
-        name="Reports" 
-        component={ReportsNavigator} 
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Guard Reports screen by role
-            return (
-              <RoleGuard permission="canViewReports">
-                {null}
-              </RoleGuard>
-            );
-          },
-        })}
+      <Tab.Screen
+        name="Reports"
+        component={ReportsNavigator}
       />
       <Tab.Screen name="Devices" component={DeviceNavigator} />
       <Tab.Screen name="Settings" component={SettingsNavigator} />

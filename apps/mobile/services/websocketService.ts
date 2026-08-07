@@ -1,13 +1,14 @@
 import { QueryClient } from '@tanstack/react-query';
 import { secureStoreService } from './secureStoreService';
 import { notificationService } from './notificationService';
+import { BASE_WS_URL } from '../config/apiConfig';
 
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
-  private heartbeatInterval: any = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private isIntentionalDisconnect = false;
   private queryClient: QueryClient | null = null;
 
@@ -15,22 +16,19 @@ class WebSocketService {
     this.queryClient = queryClient;
     const accessToken = await secureStoreService.getAccessToken();
     if (!accessToken) {
-      console.warn('Cannot connect to WebSocket: No access token available');
+      console.warn('[WebSocket] Cannot connect: No access token available');
       return;
     }
 
     this.isIntentionalDisconnect = false;
-    
-    // Get WS URL from environment variables
-    const rawUrl = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000';
-    const wsBase = rawUrl.replace(/^http/, 'ws');
-    const wsUrl = `${wsBase}/ws/dashboard?token=${accessToken}`;
-    
-    console.log(`Connecting to WebSocket: ${wsUrl}`);
+
+    // Use the shared BASE_WS_URL (already converted from http→ws by apiConfig)
+    const wsUrl = `${BASE_WS_URL}/ws/dashboard?token=${accessToken}`;
+    console.log('[WebSocket] Connecting to:', wsUrl);
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('WebSocket connection established successfully');
+      console.log('[WebSocket] Connection established');
       this.reconnectAttempts = 0;
       this.reconnectDelay = 1000;
       this.startHeartbeat();
@@ -38,43 +36,36 @@ class WebSocketService {
 
     this.ws.onmessage = async (event) => {
       try {
+        if (event.data === 'pong') return;
         const rawData = JSON.parse(event.data);
-        if (rawData === 'pong') return;
-        
         const { event: eventName, data } = rawData;
-        console.log(`Received WebSocket message: ${eventName}`, data);
+        console.log('[WebSocket] Event:', eventName);
 
         if (!this.queryClient) return;
 
         switch (eventName) {
           case 'new_telemetry':
-            // Update the cache for latest vitals
             this.queryClient.setQueryData(
               ['vitals', 'latest', data.patient_id],
               {
-                reading_id: data.reading_id,
-                patient_id: data.patient_id,
-                device_id: data.device_id,
-                timestamp: data.timestamp,
-                spo2: data.spo2,
-                heart_rate: data.heart_rate,
+                reading_id:  data.reading_id,
+                patient_id:  data.patient_id,
+                device_id:   data.device_id,
+                timestamp:   data.timestamp,
+                spo2:        data.spo2,
+                heart_rate:  data.heart_rate,
                 temperature: data.temperature,
               }
             );
-            
-            // Invalidate patients so dashboard counters update
             this.queryClient.invalidateQueries({ queryKey: ['patients'] });
             break;
 
           case 'new_alert':
-            // Invalidate alerts query
             this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
-            
-            // Trigger local notification
             await notificationService.showLocalAsync({
-              title: `${data.alert_type.toUpperCase()} ALERT: Bed ${data.bed_number || 'N/A'}`,
-              body: data.message,
-              data: { patientId: data.patient_id },
+              title: `${data.alert_type.toUpperCase()} ALERT: Bed ${data.bed_number ?? 'N/A'}`,
+              body:  data.message,
+              data:  { patientId: data.patient_id },
             });
             break;
 
@@ -83,20 +74,24 @@ class WebSocketService {
             this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
             break;
 
+          case 'device_status':
+            this.queryClient.invalidateQueries({ queryKey: ['devices'] });
+            break;
+
           default:
-            console.log('Unhandled WebSocket event:', eventName);
+            console.log('[WebSocket] Unhandled event:', eventName);
         }
       } catch (err) {
-        console.error('Error parsing WebSocket message:', err);
+        console.error('[WebSocket] Error parsing message:', err);
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error('WebSocket connection error:', error);
+      console.error('[WebSocket] Connection error:', error);
     };
 
     this.ws.onclose = (event) => {
-      console.log('WebSocket connection closed:', event.reason);
+      console.log('[WebSocket] Closed:', event.reason);
       this.stopHeartbeat();
       if (!this.isIntentionalDisconnect) {
         this.attemptReconnect();
@@ -119,7 +114,7 @@ class WebSocketService {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send('ping');
       }
-    }, 30000);
+    }, 30_000);
   }
 
   private stopHeartbeat() {
@@ -131,18 +126,18 @@ class WebSocketService {
 
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max WebSocket reconnect attempts reached.');
+      console.error('[WebSocket] Max reconnect attempts reached.');
       return;
     }
-
     this.reconnectAttempts++;
-    console.log(`Reconnecting WebSocket in ${this.reconnectDelay}ms (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-    
+    console.log(
+      `[WebSocket] Reconnecting in ${this.reconnectDelay}ms (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    );
     setTimeout(() => {
       if (this.queryClient) {
         this.connect(this.queryClient);
       }
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30_000);
     }, this.reconnectDelay);
   }
 }
