@@ -1,0 +1,31 @@
+{
+  "name": "mednova",
+  "version": "1.0.0",
+  "description": "Smart AI-powered ventilator monitoring platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev -w @mednova/web",
+    "mobile": "npm run start -w @mednova/mobile",
+    "backend": "cd backend && .venv\\Scripts\\activate && uvicorn app.main:app --reload",
+    "build": "npm run build -w @mednova/types && npm run build -w @mednova/constants && npm run build -w @mednova/utils && npm run build -w @mednova/api && npm run build -w @mednova/hooks && npm run build -w @mednova/web",
+    "test": "npm run test --workspaces"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/angel-0210/MedNova.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/angel-0210/MedNova/issues"
+  },
+  "homepage": "https://github.com/angel-0210/MedNova#readme",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

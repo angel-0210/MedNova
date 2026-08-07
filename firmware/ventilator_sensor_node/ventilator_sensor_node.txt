@@ -1,0 +1,286 @@
+/**
+ * MedNova Ventilator Telemetry Node for ESP32
+ * 
+ * This firmware connects an ESP32 microcontroller to the local Wi-Fi network,
+ * simulates medical-grade ventilator telemetry parameters, and POSTs the structured
+ * JSON payload to the MedNova backend's IoT ingestion API.
+ * 
+ * Hardware Prerequisites:
+ * - ESP32 Development Board (e.g. ESP32-WROOM-32)
+ * - Micro-USB cable
+ * - Optional status LED (default GPIO 2 built-in LED is used)
+ * 
+ * Library Dependencies (Install via Arduino Library Manager):
+ * - ArduinoJson (by Benoit Blanchon, v6.x or v7.x recommended)
+ */
+
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+// =========================================================================
+// 1. CONFIGURATION PARAMETERS (Modify these to match your environment)
+// =========================================================================
+
+// Network Credentials
+const char* wifi_ssid     = "YOUR_WIFI_SSID";
+const char* wifi_password = "YOUR_WIFI_PASSWORD";
+
+// MedNova API Server Configurations
+// Note: If running FastAPI locally, use the local IP address of your host machine (not localhost/127.0.0.1)
+const char* backend_url   = "http://10.85.55.127:8000/api/v1/iot/readings";
+
+// Precompiled connection code (5-digit numeric pairing code)
+// This code must match a registered device in the database
+const char* connection_code = "58392"; 
+
+// Telemetry Tx Interval (Milliseconds)
+const unsigned long tx_interval_ms = 5000; // 5 seconds
+
+// Status Indication Pins
+const int status_led_pin = 2; // Built-in LED on most ESP32 boards
+
+// =========================================================================
+// 2. STATE VARIABLES
+// =========================================================================
+unsigned long last_tx_time = 0;
+float sim_time = 0.0; // Time tracking variable for generating cyclic curves
+
+// Physiological Simulation States
+enum PatientStatus {
+  PATIENT_NORMAL,
+  PATIENT_WEANING,
+  PATIENT_HYPOXIA,     // Triggers Low SpO2 warning
+  PATIENT_OBSTRUCTED   // Triggers High Airway Pressure warning
+};
+PatientStatus current_patient_status = PATIENT_NORMAL;
+
+// =========================================================================
+// 3. SETUP & INITIALIZATION
+// =========================================================================
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  
+  Serial.println("\n====================================");
+  Serial.println("MedNova ESP32 Ventilator Node v1.0.0");
+  Serial.println("====================================");
+
+  pinMode(status_led_pin, OUTPUT);
+  digitalWrite(status_led_pin, LOW);
+
+  // Initialize Wi-Fi connection
+  connectToWiFi();
+}
+
+// =========================================================================
+// 4. MAIN LOOP
+// =========================================================================
+void loop() {
+  // Enforce Wi-Fi connectivity
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+  }
+
+  // Telemetry Dispatch Timer
+  unsigned long current_time = millis();
+  if (current_time - last_tx_time >= tx_interval_ms) {
+    last_tx_time = current_time;
+    
+    // Update simulation curves and state
+    sim_time += (float)tx_interval_ms / 1000.0;
+    cyclePatientStatus();
+
+    // 1. Simulate Sensor Parameters
+    float spo2 = readSpO2();
+    float heart_rate = readHeartRate();
+    float pressure = readAirwayPressure();
+    float temperature = readTemperature();
+    float airflow = readAirflow();
+    float respiratory_rate = readRespiratoryRate();
+
+    // 2. Build JSON Payload
+    String json_payload = serializeTelemetry(spo2, heart_rate, pressure, temperature, airflow, respiratory_rate);
+    
+    // 3. Dispatch to API
+    dispatchTelemetry(json_payload);
+  }
+}
+
+// =========================================================================
+// 5. WI-FI MANAGEMENT
+// =========================================================================
+void connectToWiFi() {
+  Serial.print("Connecting to Wi-Fi: ");
+  Serial.println(wifi_ssid);
+  
+  WiFi.begin(wifi_ssid, wifi_password);
+  
+  int attempts = 0;
+  // Flash status LED quickly while connecting
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    digitalWrite(status_led_pin, !digitalRead(status_led_pin));
+    attempts++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(status_led_pin, HIGH); // Steady ON indicates connected
+    Serial.println("\nWi-Fi Connected successfully!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    digitalWrite(status_led_pin, LOW); // OFF indicates failed connection
+    Serial.println("\nWi-Fi connection failed. Will retry in loop.");
+  }
+}
+
+// =========================================================================
+// 6. PATIENT SIMULATION SYSTEM
+// =========================================================================
+void cyclePatientStatus() {
+  // Cycle between patient states every 60 seconds to demonstrate clinical alerting
+  int cycle_seconds = (int)sim_time % 240;
+  
+  if (cycle_seconds < 60) {
+    current_patient_status = PATIENT_NORMAL;
+  } else if (cycle_seconds < 120) {
+    current_patient_status = PATIENT_WEANING;
+  } else if (cycle_seconds < 180) {
+    current_patient_status = PATIENT_HYPOXIA;
+  } else {
+    current_patient_status = PATIENT_OBSTRUCTED;
+  }
+}
+
+// Physiological simulators generating realistic mathematical parameters
+float readSpO2() {
+  if (current_patient_status == PATIENT_HYPOXIA) {
+    // Drop SpO2 to critical range (82% - 88%)
+    return 85.0 + 3.0 * sin(sim_time * 0.1);
+  }
+  // Normal physiological SpO2 (96% - 99%)
+  return 98.0 + 1.0 * sin(sim_time * 0.05);
+}
+
+float readHeartRate() {
+  if (current_patient_status == PATIENT_HYPOXIA) {
+    // Elevate HR due to hypoxemia stress (tachycardia: 110 - 130 BPM)
+    return 120.0 + 10.0 * cos(sim_time * 0.15);
+  }
+  // Normal physiological Heart Rate (68 - 75 BPM)
+  return 72.0 + 3.0 * cos(sim_time * 0.05);
+}
+
+float readAirwayPressure() {
+  if (current_patient_status == PATIENT_OBSTRUCTED) {
+    // Severe high airway pressure spike (obstructed circuit: 36 - 44 cmH2O)
+    return 40.0 + 4.0 * sin(sim_time * 0.5);
+  }
+  // Standard positive pressure ventilation cycle (12 - 18 cmH2O)
+  return 15.0 + 3.0 * sin(sim_time * 0.5);
+}
+
+float readTemperature() {
+  // Steady patient core body temp with minor fluctuation (36.6C - 37.1C)
+  return 36.8 + 0.2 * sin(sim_time * 0.01);
+}
+
+float readAirflow() {
+  if (current_patient_status == PATIENT_OBSTRUCTED) {
+    // Airflow drops as pressure spikes due to blockage
+    return 4.0 + 1.5 * cos(sim_time * 0.5);
+  }
+  // Normal cyclic tidal airflow rate (18 - 25 L/min)
+  return 20.0 + 4.0 * cos(sim_time * 0.5);
+}
+
+float readRespiratoryRate() {
+  if (current_patient_status == PATIENT_HYPOXIA) {
+    // Hyperventilating (24 - 28 breaths/min)
+    return 26.0 + 2.0 * sin(sim_time * 0.05);
+  }
+  // Normal breathing rate (12 - 16 breaths/min)
+  return 14.0 + 1.0 * sin(sim_time * 0.05);
+}
+
+// =========================================================================
+// 7. TELEMETRY SERIALIZATION & TRANSMISSION
+// =========================================================================
+String serializeTelemetry(float spo2, float hr, float press, float temp, float flow, float rr) {
+  // JSON payload structure matching the backend's expected schema (IotIngestPayload)
+  StaticJsonDocument<256> doc;
+  
+  doc["connection_code"]  = connection_code;
+  doc["spo2"]             = round(spo2 * 100.0) / 100.0;
+  doc["heart_rate"]       = round(hr * 100.0) / 100.0;
+  doc["pressure"]         = round(press * 100.0) / 100.0;
+  doc["temperature"]      = round(temp * 100.0) / 100.0;
+  doc["airflow"]          = round(flow * 100.0) / 100.0;
+  doc["respiratory_rate"] = round(rr * 100.0) / 100.0;
+
+  String output;
+  serializeJson(doc, output);
+  return output;
+}
+
+void dispatchTelemetry(String json_payload) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Telemetry skipped: No Wi-Fi Connection");
+    return;
+  }
+
+  // Toggle status LED briefly during transmission
+  digitalWrite(status_led_pin, LOW);
+
+  HTTPClient http;
+  
+  Serial.println("\n--- Dispatching Telemetry ---");
+  Serial.print("Target URL: ");
+  Serial.println(backend_url);
+  Serial.print("Payload: ");
+  Serial.println(json_payload);
+
+  // Configure target server connection
+  http.begin(backend_url);
+  http.addHeader("Content-Type", "application/json");
+
+  // Post HTTP request
+  int http_code = http.POST(json_payload);
+
+  if (http_code > 0) {
+    Serial.print("HTTP Response Code: ");
+    Serial.println(http_code);
+    
+    if (http_code == HTTP_CODE_CREATED || http_code == HTTP_CODE_OK) {
+      String response = http.getString();
+      Serial.println("Telemetry successfully accepted!");
+      Serial.print("Server Response: ");
+      Serial.println(response);
+      digitalWrite(status_led_pin, HIGH); // Solid ON when transmission succeeds
+    } else {
+      String error_response = http.getString();
+      Serial.print("Ingestion rejected: ");
+      Serial.println(error_response);
+      // Fast flashing LED indicates bad payload / device unassigned
+      flashLED(3, 100);
+    }
+  } else {
+    Serial.print("HTTP POST failed, transport error: ");
+    Serial.println(http.errorToString(http_code).c_str());
+    // Slow flashing LED indicates server connection/timeout issue
+    flashLED(2, 400);
+  }
+
+  http.end();
+}
+
+void flashLED(int count, int delay_ms) {
+  for (int i = 0; i < count; i++) {
+    digitalWrite(status_led_pin, HIGH);
+    delay(delay_ms);
+    digitalWrite(status_led_pin, LOW);
+    delay(delay_ms);
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@mednova/utils",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"No tests for utils\""
+  },
+  "dependencies": {
+    "@mednova/types": "^1.0.0",
+    "@mednova/constants": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

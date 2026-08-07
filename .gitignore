@@ -1,0 +1,30 @@
+# environment variables
+.env
+.env*.local
+
+# JavaScript dependencies
+node_modules/
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Expo / build output
+.expo/
+dist/
