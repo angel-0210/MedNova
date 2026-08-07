@@ -7,6 +7,7 @@ from app.core.exceptions import PermissionDeniedException
 from app.core.security import RequireRole
 from app.database.models import User
 from app.schemas.auth import RegisterRequest, RefreshRequest, PasswordResetRequest
+from app.schemas.entities import StaffCreate
 
 
 def make_user(role):
@@ -36,3 +37,21 @@ def test_refresh_and_reset_take_a_json_body():
     # the mobile client posts JSON, so every refresh 422'd and logged the user out.
     assert RefreshRequest(refresh_token="abc").refresh_token == "abc"
     assert PasswordResetRequest(email="a@b.io").email == "a@b.io"
+
+
+def test_staff_create_validates_role_and_password():
+    base = dict(name="A", email="a@b.io", password="pw123456")
+    # Unlike self-registration, an admin may mint another admin.
+    assert StaffCreate(role="admin", **base).role == "admin"
+    with pytest.raises(ValidationError):
+        StaffCreate(role="janitor", **base)
+    with pytest.raises(ValidationError):
+        StaffCreate(role="nurse", name="A", email="a@b.io", password="short")
+
+
+def test_staff_create_cannot_smuggle_a_hospital_id():
+    # hospital_id comes from the caller's token. If the schema ever started accepting
+    # it from the body, an admin could seed users into someone else's tenant.
+    staff = StaffCreate(name="A", email="a@b.io", password="pw123456",
+                        role="nurse", hospital_id=str(uuid.uuid4()))
+    assert "hospital_id" not in staff.model_dump()

@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  patientRepository, alertRepository, 
-  deviceRepository, aiRepository, vitalsRepository 
+import {
+  patientRepository, alertRepository, deviceRepository, aiRepository,
+  vitalsRepository, hospitalRepository, wardRepository, userRepository,
+  auditRepository
 } from '@mednova/api';
+import type { Patient, Device, UserRole } from '@mednova/types';
 
 // =========================================================================
 // PATIENT HOOKS
@@ -12,6 +14,17 @@ export const usePatientsQuery = () => {
     queryKey: ['patients'],
     queryFn: () => patientRepository.listPatients(),
     refetchInterval: 10000, // Sync list every 10 seconds
+  });
+};
+
+export const useCreatePatientMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Patient, 'patient_id' | 'admission_date' | 'created_at' | 'updated_at'>) =>
+      patientRepository.createPatient(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
   });
 };
 
@@ -97,15 +110,37 @@ export const useDevicesQuery = () => {
   });
 };
 
+export const useAssignmentsQuery = () => {
+  return useQuery({
+    queryKey: ['assignments'],
+    queryFn: () => deviceRepository.listAssignments(),
+    refetchInterval: 8000,
+  });
+};
+
+export const useRegisterDeviceMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Device, 'device_id' | 'created_at' | 'updated_at'>) =>
+      deviceRepository.registerDevice(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+};
+
+const invalidatePairing = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ['devices'] });
+  queryClient.invalidateQueries({ queryKey: ['patients'] });
+  queryClient.invalidateQueries({ queryKey: ['assignments'] });
+};
+
 export const usePairDeviceMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { device_id: string; patient_id: string; hospital_id: string }) => 
+    mutationFn: (payload: { device_id: string; patient_id: string; hospital_id: string }) =>
       deviceRepository.assignDevice(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
-    },
+    onSuccess: () => invalidatePairing(queryClient),
   });
 };
 
@@ -113,9 +148,73 @@ export const useUnpairDeviceMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (assignmentId: string) => deviceRepository.unassignDevice(assignmentId),
+    onSuccess: () => invalidatePairing(queryClient),
+  });
+};
+
+// =========================================================================
+// HOSPITAL / WARD / STAFF / AUDIT HOOKS
+// =========================================================================
+export const useHospitalQuery = (hospitalId?: string) => {
+  return useQuery({
+    queryKey: ['hospital', hospitalId],
+    queryFn: () => hospitalRepository.getHospital(hospitalId!),
+    enabled: !!hospitalId,
+  });
+};
+
+export const useCreateHospitalMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; hospital_code: string; address?: string }) =>
+      hospitalRepository.createHospital(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['hospital'] });
     },
+  });
+};
+
+export const useWardsQuery = () => {
+  return useQuery({
+    queryKey: ['wards'],
+    queryFn: () => wardRepository.listWards(),
+  });
+};
+
+export const useCreateWardMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; unit_type: string; hospital_id: string }) =>
+      wardRepository.createWard(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wards'] });
+    },
+  });
+};
+
+export const useUsersQuery = () => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => userRepository.listUsers(),
+  });
+};
+
+export const useCreateStaffMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; email: string; password: string; role: UserRole }) =>
+      userRepository.createStaff(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+};
+
+export const useAuditLogsQuery = (enabled = true) => {
+  return useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: () => auditRepository.listLogs(),
+    enabled,
+    refetchInterval: 30000,
   });
 };
