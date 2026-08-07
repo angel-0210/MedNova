@@ -5,17 +5,12 @@
 @layer base {
   body {
     @apply bg-background text-textMain font-sans;
-    background-image: radial-gradient(circle at 50% 120%, #152238 0%, #0b0c10 70%);
-    background-attachment: fixed;
   }
 }
 
-/* Glassmorphism card utility */
+/* White panel utility */
 .glass-panel {
-  background: rgba(31, 40, 51, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  @apply bg-white border border-slate-200/80 shadow-sm;
 }
 
 /* Neon glow border utility */

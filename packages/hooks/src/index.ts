@@ -1,9 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+<<<<<<< HEAD
 import { 
   patientRepository, alertRepository, 
   deviceRepository, aiRepository, vitalsRepository,
   doctorRepository, userRepository
+=======
+import {
+  patientRepository, alertRepository, deviceRepository, aiRepository,
+  vitalsRepository, hospitalRepository, wardRepository, userRepository,
+  auditRepository
+>>>>>>> a94e8559e9a760a6ba13ef32200c6f824c8f703b
 } from '@mednova/api';
+import type { Patient, Device, UserRole } from '@mednova/types';
 
 // =========================================================================
 // PATIENT HOOKS
@@ -13,6 +21,17 @@ export const usePatientsQuery = (params?: { search?: string; ventilator_status?:
     queryKey: ['patients', params],
     queryFn: () => patientRepository.listPatients(params),
     refetchInterval: 10000, // Sync list every 10 seconds
+  });
+};
+
+export const useCreatePatientMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Patient, 'patient_id' | 'admission_date' | 'created_at' | 'updated_at'>) =>
+      patientRepository.createPatient(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
   });
 };
 
@@ -98,15 +117,37 @@ export const useDevicesQuery = () => {
   });
 };
 
+export const useAssignmentsQuery = () => {
+  return useQuery({
+    queryKey: ['assignments'],
+    queryFn: () => deviceRepository.listAssignments(),
+    refetchInterval: 8000,
+  });
+};
+
+export const useRegisterDeviceMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Omit<Device, 'device_id' | 'created_at' | 'updated_at'>) =>
+      deviceRepository.registerDevice(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+};
+
+const invalidatePairing = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ['devices'] });
+  queryClient.invalidateQueries({ queryKey: ['patients'] });
+  queryClient.invalidateQueries({ queryKey: ['assignments'] });
+};
+
 export const usePairDeviceMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { device_id: string; patient_id: string; hospital_id: string }) => 
+    mutationFn: (payload: { device_id: string; patient_id: string; hospital_id: string }) =>
       deviceRepository.assignDevice(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
-    },
+    onSuccess: () => invalidatePairing(queryClient),
   });
 };
 
@@ -114,13 +155,33 @@ export const useUnpairDeviceMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (assignmentId: string) => deviceRepository.unassignDevice(assignmentId),
+    onSuccess: () => invalidatePairing(queryClient),
+  });
+};
+
+// =========================================================================
+// HOSPITAL / WARD / STAFF / AUDIT HOOKS
+// =========================================================================
+export const useHospitalQuery = (hospitalId?: string) => {
+  return useQuery({
+    queryKey: ['hospital', hospitalId],
+    queryFn: () => hospitalRepository.getHospital(hospitalId!),
+    enabled: !!hospitalId,
+  });
+};
+
+export const useCreateHospitalMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; hospital_code: string; address?: string }) =>
+      hospitalRepository.createHospital(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['hospital'] });
     },
   });
 };
 
+<<<<<<< HEAD
 // =========================================================================
 // DOCTOR SPECIFIC HOOKS
 // =========================================================================
@@ -176,10 +237,27 @@ export const useDoctorAcknowledgeAlertMutation = () => {
       if (data && data.patient_id) {
         queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', data.patient_id, 'timeline'] });
       }
+=======
+export const useWardsQuery = () => {
+  return useQuery({
+    queryKey: ['wards'],
+    queryFn: () => wardRepository.listWards(),
+  });
+};
+
+export const useCreateWardMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; unit_type: string; hospital_id: string }) =>
+      wardRepository.createWard(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wards'] });
+>>>>>>> a94e8559e9a760a6ba13ef32200c6f824c8f703b
     },
   });
 };
 
+<<<<<<< HEAD
 export const useDoctorResolveAlertMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -246,10 +324,27 @@ export const useRefreshPredictionMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', patientId, 'history'] });
       queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', patientId, 'timeline'] });
       queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
+=======
+export const useUsersQuery = () => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => userRepository.listUsers(),
+  });
+};
+
+export const useCreateStaffMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; email: string; password: string; role: UserRole }) =>
+      userRepository.createStaff(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+>>>>>>> a94e8559e9a760a6ba13ef32200c6f824c8f703b
     },
   });
 };
 
+<<<<<<< HEAD
 export const useDoctorReportsQuery = (params?: { patient_id?: string; report_type?: string }) => {
   return useQuery({
     queryKey: ['doctor', 'reports', params],
@@ -303,3 +398,13 @@ export const useUpdateUserProfileMutation = () => {
   });
 };
 
+=======
+export const useAuditLogsQuery = (enabled = true) => {
+  return useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: () => auditRepository.listLogs(),
+    enabled,
+    refetchInterval: 30000,
+  });
+};
+>>>>>>> a94e8559e9a760a6ba13ef32200c6f824c8f703b

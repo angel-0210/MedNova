@@ -84,6 +84,14 @@ class UserUpdate(BaseModel):
     profile_picture: Optional[str] = None
     license_number: Optional[str] = None
 
+class StaffCreate(BaseModel):
+    """Admin-panel staff creation. hospital_id is taken from the caller's own token,
+    never from the request body, so an admin cannot seed users into another tenant."""
+    name: str = Field(..., min_length=1)
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    role: str = Field(..., pattern="^(admin|doctor|nurse|attendant)$")
+
 class UserResponse(UserBase):
     user_id: uuid.UUID
     hospital_id: uuid.UUID

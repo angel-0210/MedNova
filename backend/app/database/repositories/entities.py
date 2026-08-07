@@ -81,6 +81,18 @@ class DeviceAssignmentRepository(BaseRepository[DeviceAssignment]):
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
+    async def list_active(self, hospital_id: uuid.UUID) -> List[DeviceAssignment]:
+        # Filtered in SQL rather than by trimming list_all() -- historical rows would
+        # otherwise crowd the active ones out of the 100-row page.
+        stmt = select(DeviceAssignment).where(
+            and_(
+                DeviceAssignment.hospital_id == hospital_id,
+                DeviceAssignment.is_active == True
+            )
+        ).order_by(desc(DeviceAssignment.assigned_at))
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
 
 class SensorReadingRepository(BaseRepository[SensorReading]):
     def __init__(self, db: AsyncSession):
@@ -153,3 +165,12 @@ class AlertEscalationRepository(BaseRepository[AlertEscalation]):
 class AuditLogRepository(BaseRepository[AuditLog]):
     def __init__(self, db: AsyncSession):
         super().__init__(AuditLog, db)
+
+    async def list_recent(self, hospital_id: uuid.UUID, limit: int = 50) -> List[AuditLog]:
+        # list_all() has no ORDER BY, so "recent activity" built on it returned rows in
+        # whatever order Postgres felt like. Newest-first is the whole point here.
+        stmt = select(AuditLog).where(
+            AuditLog.hospital_id == hospital_id
+        ).order_by(desc(AuditLog.created_at)).limit(limit)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

@@ -22,11 +22,11 @@ from app.core.config import settings
 from app.database.models import Hospital, User
 from app.database.session import async_session_factory
 
-EMAIL = sys.argv[1] if len(sys.argv) > 1 else "doctor@mednova.io"
-PASSWORD = sys.argv[2] if len(sys.argv) > 2 else "MedNova!Dev2026"
+EMAIL = sys.argv[1] if len(sys.argv) > 1 else "admin@mednova.io"
+PASSWORD = sys.argv[2] if len(sys.argv) > 2 else "MedNova!Admin2026"
 HOSPITAL_CODE = "MEDNOVA01"
-ROLE = "doctor"
-NAME = "Dr Test"
+ROLE = "admin"
+NAME = "MedNova Admin"
 
 
 async def main() -> None:

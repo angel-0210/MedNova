@@ -20,10 +20,11 @@ from app.database.repositories.entities import (
     SensorReadingRepository, AIPredictionRepository, AlertRepository,
     AuditLogRepository
 )
+from app.api.v1.endpoints.auth import supabase_client
 from app.schemas.entities import (
     HospitalCreate, HospitalUpdate, HospitalResponse,
     WardCreate, WardUpdate, WardResponse,
-    UserUpdate, UserResponse,
+    UserUpdate, UserResponse, StaffCreate,
     PatientCreate, PatientUpdate, PatientResponse,
     DeviceCreate, DeviceUpdate, DeviceResponse,
     DeviceAssignmentCreate, DeviceAssignmentResponse,
@@ -127,6 +128,75 @@ async def list_wards(
 # =========================================================================
 # USERS PROFILE ENDPOINTS (Staff access)
 # =========================================================================
+@user_router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_staff(
+    payload: StaffCreate,
+    request: Request,
+    current_user: User = Depends(RequireRole(["admin"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Creates a staff member from the admin panel.
+
+    Uses the service-role admin API with email_confirm=True rather than /auth/register's
+    sign_up: a sign_up account stays unconfirmed and sign_in_with_password then fails, so
+    admin-created staff could never actually log in.
+    """
+    user_repo = UserRepository(db)
+    if await user_repo.get_by_email(payload.email):
+        raise HTTPException(status_code=400, detail="Email is already registered")
+
+    try:
+        created_auth = supabase_client.auth.admin.create_user({
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,
+            "user_metadata": {
+                "role": payload.role,
+                "hospital_id": str(current_user.hospital_id),
+                "name": payload.name,
+            },
+        })
+    except Exception as e:
+        logger.exception("Auth provider staff creation failed", email=payload.email, error=str(e))
+        raise HTTPException(status_code=400, detail="Could not create staff account")
+
+    if not created_auth.user:
+        raise HTTPException(status_code=500, detail="Auth provider returned no user")
+
+    auth_user_id = uuid.UUID(created_auth.user.id)
+    try:
+        created = await user_repo.create(User(
+            user_id=auth_user_id,
+            hospital_id=current_user.hospital_id,
+            name=payload.name,
+            email=payload.email,
+            password_hash=None,  # Handled by Supabase Auth
+            role=payload.role,
+            is_active=True,
+        ))
+        await db.flush()
+
+        audit_service = AuditService(db)
+        await audit_service.log_action(
+            hospital_id=current_user.hospital_id,
+            user_id=current_user.user_id,
+            action="CREATE_STAFF",
+            entity_name="users",
+            entity_id=str(created.user_id),
+            ip_address=request.client.host if request.client else None
+        )
+        return created
+    except Exception as e:
+        # Same orphan-auth-user hazard /register guards against: without this the auth
+        # account survives with no public.users row and every login dies on lookup.
+        logger.exception("Staff profile creation failed, rolling back auth user", error=str(e))
+        try:
+            supabase_client.auth.admin.delete_user(str(auth_user_id))
+        except Exception as cleanup_error:
+            logger.error("Failed to roll back auth user", user_id=str(auth_user_id), error=str(cleanup_error))
+        raise HTTPException(status_code=400, detail="Could not create staff account")
+
 @user_router.get("", response_model=List[UserResponse])
 async def list_users(
     current_user: User = Depends(get_current_user),
@@ -292,6 +362,18 @@ async def assign_device(
     await db.flush()
     return created
 
+@assignment_router.get("", response_model=List[DeviceAssignmentResponse])
+async def list_active_assignments(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Active device<->patient links. Clients need these to resolve a device to the
+    assignment_id that /unassign expects -- without it, unpairing has nothing to call.
+    """
+    assignment_repo = DeviceAssignmentRepository(db)
+    return await assignment_repo.list_active(current_user.hospital_id)
+
 @assignment_router.post("/{assignment_id}/unassign", response_model=DeviceAssignmentResponse)
 async def remove_assignment(
     assignment_id: uuid.UUID,
@@ -417,4 +499,4 @@ async def list_audit_logs(
     db: AsyncSession = Depends(get_db)
 ):
     audit_repo = AuditLogRepository(db)
-    return await audit_repo.list_all(hospital_id=current_user.hospital_id)
+    return await audit_repo.list_recent(current_user.hospital_id)

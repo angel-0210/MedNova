@@ -1,17 +1,60 @@
 import { apiClient } from './client.js';
-import { 
-  User, Patient, SensorReading, AIPrediction, 
-  Alert, Device, DeviceAssignment 
+import {
+  User, UserRole, Patient, SensorReading, AIPrediction,
+  Alert, Device, DeviceAssignment, Hospital, Ward, AuditLog
 } from '@mednova/types';
 
 export const authRepository = {
-  async login(email: string, passwordHash: string): Promise<{ access_token: string; refresh_token: string; user: User }> {
-    const response = await apiClient.post('/api/v1/auth/login', { email, password: passwordHash });
+  async login(email: string, password: string): Promise<{ access_token: string; refresh_token: string; user: User }> {
+    const response = await apiClient.post('/api/v1/auth/login', { email, password });
     return response.data;
   },
 
   async getMe(): Promise<User> {
     const response = await apiClient.get('/api/v1/auth/me');
+    return response.data;
+  },
+};
+
+export const hospitalRepository = {
+  async getHospital(hospitalId: string): Promise<Hospital> {
+    const response = await apiClient.get(`/api/v1/hospitals/${hospitalId}`);
+    return response.data;
+  },
+
+  async createHospital(payload: { name: string; hospital_code: string; address?: string }): Promise<Hospital> {
+    const response = await apiClient.post('/api/v1/hospitals', payload);
+    return response.data;
+  },
+};
+
+export const wardRepository = {
+  async listWards(): Promise<Ward[]> {
+    const response = await apiClient.get('/api/v1/wards');
+    return response.data;
+  },
+
+  async createWard(payload: { name: string; unit_type: string; hospital_id: string }): Promise<Ward> {
+    const response = await apiClient.post('/api/v1/wards', payload);
+    return response.data;
+  },
+};
+
+export const userRepository = {
+  async listUsers(): Promise<User[]> {
+    const response = await apiClient.get('/api/v1/users');
+    return response.data;
+  },
+
+  async createStaff(payload: { name: string; email: string; password: string; role: UserRole }): Promise<User> {
+    const response = await apiClient.post('/api/v1/users', payload);
+    return response.data;
+  },
+};
+
+export const auditRepository = {
+  async listLogs(): Promise<AuditLog[]> {
+    const response = await apiClient.get('/api/v1/audit/logs');
     return response.data;
   },
 };
@@ -84,6 +127,13 @@ export const deviceRepository = {
 
   async assignDevice(payload: { device_id: string; patient_id: string; hospital_id: string }): Promise<DeviceAssignment> {
     const response = await apiClient.post('/api/v1/assignments', payload);
+    return response.data;
+  },
+
+  // Active device<->patient links. Callers need these to turn a device_id into the
+  // assignment_id that unassignDevice expects.
+  async listAssignments(): Promise<DeviceAssignment[]> {
+    const response = await apiClient.get('/api/v1/assignments');
     return response.data;
   },
 
