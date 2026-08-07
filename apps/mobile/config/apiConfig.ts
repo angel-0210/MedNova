@@ -14,15 +14,7 @@ const resolveBaseUrl = (): string => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return `http://${host}:8000`;
-    }
-  }
-
-  return Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
+  return 'https://mednova-9l87.onrender.com';
 };
 
 /** HTTP base URL — e.g. `http://192.168.1.10:8000` */

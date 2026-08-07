@@ -1,7 +1,0 @@
-{
-  "venvPath": "d:/MedNova",
-  "venv": ".venv",
-  "extraPaths": [
-    "backend"
-  ]
-}
