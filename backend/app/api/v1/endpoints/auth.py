@@ -8,7 +8,7 @@ from supabase import create_client, Client
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.security import get_current_user
-from app.core.exceptions import UnauthorizedException, InvalidCredentialsException, ConflictException, EntityNotFoundException, PermissionDeniedException
+from app.core.exceptions import MedNovaException, UnauthorizedException, InvalidCredentialsException, ConflictException, EntityNotFoundException, PermissionDeniedException
 from app.database.session import get_db
 from app.database.models import User, Hospital
 from app.database.repositories.entities import UserRepository, HospitalRepository
@@ -150,9 +150,12 @@ async def login(
 
         return Token(
             access_token=auth_response.session.access_token,
-            refresh_token=auth_response.session.refresh_token
+            refresh_token=auth_response.session.refresh_token,
+            user=UserResponse.model_validate(user)
         )
 
+    except MedNovaException:
+        raise
     except Exception as e:
         logger.warn("Login attempt failed", email=payload.email, error=str(e))
         raise InvalidCredentialsException("Invalid email or password")

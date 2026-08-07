@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { secureStoreService } from './secureStoreService';
-import * as Notifications from 'expo-notifications';
+import { notificationService } from './notificationService';
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -71,13 +71,10 @@ class WebSocketService {
             this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
             
             // Trigger local notification
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `${data.alert_type.toUpperCase()} ALERT: Bed ${data.bed_number || 'N/A'}`,
-                body: data.message,
-                data: { patientId: data.patient_id },
-              },
-              trigger: null,
+            await notificationService.showLocalAsync({
+              title: `${data.alert_type.toUpperCase()} ALERT: Bed ${data.bed_number || 'N/A'}`,
+              body: data.message,
+              data: { patientId: data.patient_id },
             });
             break;
 

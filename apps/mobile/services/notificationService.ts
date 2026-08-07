@@ -1,17 +1,30 @@
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsType from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+export const isExpoGo = Constants.appOwnership === 'expo';
+
+// Importing expo-notifications runs DevicePushTokenAutoRegistration as a side effect, which
+// logs an error under Expo Go (SDK 53+ dropped remote push there). Load it on first real use
+// so app boot stays clean; a dev build has no such notice.
+let notificationsModule: typeof NotificationsType | null = null;
+
+const loadNotifications = async (): Promise<typeof NotificationsType> => {
+  if (!notificationsModule) {
+    notificationsModule = await import('expo-notifications');
+    notificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }
+  return notificationsModule;
+};
 
 export const notificationService = {
   async registerForPushNotificationsAsync(): Promise<string | undefined> {
@@ -21,7 +34,7 @@ export const notificationService = {
     }
 
     // Expo Go does not support remote push notifications starting from SDK 53
-    if (Constants.appOwnership === 'expo') {
+    if (isExpoGo) {
       console.warn('Push notifications (remote) are not supported in Expo Go. Use a development build.');
       return;
     }
@@ -35,9 +48,10 @@ export const notificationService = {
       return;
     }
 
+    const Notifications = await loadNotifications();
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-    
+
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
@@ -69,11 +83,19 @@ export const notificationService = {
     }
   },
 
-  addNotificationReceivedListener(callback: (notification: Notifications.Notification) => void) {
+  /** Local notification — works in Expo Go and in dev builds. */
+  async showLocalAsync(content: NotificationsType.NotificationContentInput) {
+    const Notifications = await loadNotifications();
+    return Notifications.scheduleNotificationAsync({ content, trigger: null });
+  },
+
+  async addNotificationReceivedListener(callback: (notification: NotificationsType.Notification) => void) {
+    const Notifications = await loadNotifications();
     return Notifications.addNotificationReceivedListener(callback);
   },
 
-  addNotificationResponseReceivedListener(callback: (response: Notifications.NotificationResponse) => void) {
+  async addNotificationResponseReceivedListener(callback: (response: NotificationsType.NotificationResponse) => void) {
+    const Notifications = await loadNotifications();
     return Notifications.addNotificationResponseReceivedListener(callback);
   },
 };

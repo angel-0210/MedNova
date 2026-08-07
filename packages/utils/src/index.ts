@@ -48,8 +48,12 @@ export const isValidMacAddress = (mac: string): boolean => {
 // ERROR PARSING
 // =========================================================================
 export const parseAPIError = (error: any): string => {
-  if (error?.response?.data?.detail) {
-    const detail = error.response.data.detail;
+  const data = error?.response?.data;
+  // This API's error handler returns {success, message, error_code}; FastAPI's own
+  // validation/HTTPException path returns {detail}. Handle both.
+  if (typeof data?.message === 'string') return data.message;
+  if (data?.detail) {
+    const detail = data.detail;
     if (typeof detail === 'string') return detail;
     if (Array.isArray(detail) && detail.length > 0) {
       return detail[0]?.msg || JSON.stringify(detail);

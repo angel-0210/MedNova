@@ -84,11 +84,17 @@ async def verify_supabase_jwt(credentials: HTTPAuthorizationCredentials = Depend
         if not key:
             raise UnauthorizedException("Invalid token signature: Key ID not recognized", "INVALID_TOKEN_KEY")
         
+        # Trust the algorithm the JWKS key declares rather than a hardcoded constant --
+        # Supabase signs with ES256 on newer projects and RS256 on older ones, and a project
+        # can rotate between them. Falling back to the token header would let a caller pick
+        # the algorithm, so only the key's own "alg" (or the configured default) is accepted.
+        algorithm = key.get("alg") or settings.JWT_ALGORITHM
+
         # Decode and verify the token signature
         payload = jwt.decode(
             token,
             key,
-            algorithms=[settings.JWT_ALGORITHM],
+            algorithms=[algorithm],
             audience=settings.JWT_AUDIENCE,
             options={"verify_aud": True, "verify_signature": True}
         )

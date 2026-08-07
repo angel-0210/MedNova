@@ -3,10 +3,14 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 import uuid
 
+from app.schemas.entities import UserResponse
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     refresh_token: Optional[str] = None
+    # Clients store the profile straight off the login response instead of a second /me call.
+    user: Optional[UserResponse] = None
 
 class TokenPayload(BaseModel):
     sub: str  # User ID

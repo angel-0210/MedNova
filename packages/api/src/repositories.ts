@@ -6,7 +6,7 @@ import {
 
 export const authRepository = {
   async login(email: string, passwordHash: string): Promise<{ access_token: string; refresh_token: string; user: User }> {
-    const response = await apiClient.post('/api/v1/auth/login', { email, password_hash: passwordHash });
+    const response = await apiClient.post('/api/v1/auth/login', { email, password: passwordHash });
     return response.data;
   },
 
