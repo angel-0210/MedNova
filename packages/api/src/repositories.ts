@@ -1,6 +1,6 @@
 import { apiClient } from './client.js';
 import {
-  User, UserRole, Patient, SensorReading, AIPrediction,
+  User, UserRole, Patient, SensorReading, AIPrediction, FollowUpStatus,
   Alert, Device, DeviceAssignment, Hospital, Ward, AuditLog
 } from '@mednova/types';
 
@@ -84,6 +84,14 @@ export const patientRepository = {
     const response = await apiClient.post('/api/v1/patients', payload);
     return response.data;
   },
+
+  /** PATCH semantics: omitted keys are left untouched by the server. */
+  async updatePatient(patientId: string, payload: Partial<Pick<Patient,
+    'name' | 'age' | 'gender' | 'bed_number' | 'ventilator_status' |
+    'assigned_doctor_id' | 'assigned_nurse_id' | 'ward_id'>>): Promise<Patient> {
+    const response = await apiClient.patch(`/api/v1/patients/${patientId}`, payload);
+    return response.data;
+  },
 };
 
 export const vitalsRepository = {
@@ -120,6 +128,15 @@ export const alertRepository = {
 export const aiRepository = {
   async getLatestPrediction(patientId: string): Promise<AIPrediction> {
     const response = await apiClient.get(`/api/v1/predictions/patient/${patientId}/latest`);
+    return response.data;
+  },
+
+  /** Records the clinician follow-up on a result. Send either field, or both. */
+  async updateFollowUp(
+    predictionId: string,
+    payload: { follow_up_status?: FollowUpStatus; clinician_note?: string }
+  ): Promise<AIPrediction> {
+    const response = await apiClient.patch(`/api/v1/predictions/${predictionId}/follow-up`, payload);
     return response.data;
   },
 };

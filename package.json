@@ -10,7 +10,7 @@
   "scripts": {
     "web": "npm run dev -w @mednova/web",
     "mobile": "npm run start -w @mednova/mobile",
-    "backend": "cd backend && .venv\\Scripts\\activate && uvicorn app.main:app --reload",
+    "backend": "cd backend && .venv\\Scripts\\activate && uvicorn app.main:app --reload --host 0.0.0.0",
     "build": "npm run build -w @mednova/types && npm run build -w @mednova/constants && npm run build -w @mednova/utils && npm run build -w @mednova/api && npm run build -w @mednova/hooks && npm run build -w @mednova/web",
     "test": "npm run test --workspaces"
   },

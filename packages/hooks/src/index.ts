@@ -4,7 +4,7 @@ import {
   vitalsRepository, hospitalRepository, wardRepository, userRepository,
   auditRepository, doctorRepository
 } from '@mednova/api';
-import type { Patient, Device, UserRole } from '@mednova/types';
+import type { Patient, Device, UserRole, FollowUpStatus } from '@mednova/types';
 
 // =========================================================================
 // PATIENT HOOKS
@@ -24,6 +24,18 @@ export const useCreatePatientMutation = () => {
       patientRepository.createPatient(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
+    },
+  });
+};
+
+export const useUpdatePatientMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ patientId, ...payload }: { patientId: string } & Parameters<typeof patientRepository.updatePatient>[1]) =>
+      patientRepository.updatePatient(patientId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['patient', variables.patientId] });
     },
   });
 };
@@ -96,6 +108,23 @@ export const useAIPredictionQuery = (patientId: string) => {
     queryFn: () => aiRepository.getLatestPrediction(patientId),
     enabled: !!patientId,
     refetchInterval: 15000, // Sync prediction every 15 seconds
+  });
+};
+
+export const useUpdateFollowUpMutation = (patientId?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ predictionId, ...payload }: {
+      predictionId: string;
+      follow_up_status?: FollowUpStatus;
+      clinician_note?: string;
+    }) => aiRepository.updateFollowUp(predictionId, payload),
+    onSuccess: (updated) => {
+      // Write the server's row straight into the cache so the panel reflects the save
+      // even though this query polls on a 15s interval.
+      queryClient.setQueryData(['prediction', patientId ?? updated.patient_id], updated);
+      queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', updated.patient_id] });
+    },
   });
 };
 
@@ -218,7 +247,6 @@ export const useAuditLogsQuery = (enabled = true) => {
     refetchInterval: 30000,
   });
 };
-
 // =========================================================================
 // DOCTOR SPECIFIC HOOKS
 // =========================================================================
@@ -346,6 +374,7 @@ export const useRefreshPredictionMutation = () => {
   });
 };
 
+
 export const useDoctorReportsQuery = (params?: { patient_id?: string; report_type?: string }) => {
   return useQuery({
     queryKey: ['doctor', 'reports', params],
@@ -398,3 +427,4 @@ export const useUpdateUserProfileMutation = () => {
     },
   });
 };
+

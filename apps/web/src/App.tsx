@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  usePatientsQuery, useCreatePatientMutation,
+  usePatientsQuery, useCreatePatientMutation, useUpdatePatientMutation,
+  useUpdateFollowUpMutation,
   useAlertsQuery, useAcknowledgeAlertMutation, useResolveAlertMutation,
   useDevicesQuery, useRegisterDeviceMutation, useAssignmentsQuery,
   usePairDeviceMutation, useUnpairDeviceMutation,
@@ -13,10 +14,10 @@ import { authRepository, setOnSessionExpired } from '@mednova/api';
 import { parseAPIError, formatDateTime } from '@mednova/utils';
 import {
   LayoutDashboard, Building2, DoorOpen, Users, Cpu, Activity, Bell,
-  ScrollText, LogOut, Plus, AlertTriangle, RefreshCw,
+  ScrollText, LogOut, Plus, AlertTriangle, RefreshCw, Pencil,
   User as UserIcon, ShieldAlert, X, CheckCircle2, Stethoscope,
 } from 'lucide-react';
-import type { User, Patient, Device, UserRole } from '@mednova/types';
+import type { User, Patient, Device, UserRole, FollowUpStatus } from '@mednova/types';
 
 // =========================================================================
 // NAVIGATION
@@ -88,13 +89,15 @@ function Modal({ title, subtitle, icon, onClose, children }: {
  * strings; each caller converts what it needs (numbers, optional fields)
  * before posting.
  */
-function FormModal({ title, subtitle, icon, fields, submitLabel, pending, error, onSubmit, onClose }: {
+function FormModal({ title, subtitle, icon, fields, submitLabel, pending, error, initial, onSubmit, onClose }: {
   title: string; subtitle?: string; icon: React.ReactNode; fields: Field[];
   submitLabel: string; pending: boolean; error: string;
+  /** Prefills the form -- an edit dialog has to open showing the current values. */
+  initial?: Record<string, string>;
   onSubmit: (values: Record<string, string>) => void; onClose: () => void;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(fields.map(f => [f.name, '']))
+    Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? '']))
   );
 
   return (
@@ -237,15 +240,62 @@ function StatCard({ icon, tone, label, value, footnote }: {
   );
 }
 
+// Follow-up vocabulary. Kept beside the panel because every surface that renders a
+// prediction needs the same four states -- they mirror the DB CHECK constraint.
+const FOLLOW_UP_OPTIONS: { value: FollowUpStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'not_required', label: 'Not Required' },
+];
+const FOLLOW_UP_LABEL: Record<string, string> =
+  Object.fromEntries(FOLLOW_UP_OPTIONS.map(o => [o.value, o.label]));
+const followUpTone: Record<string, string> = {
+  pending: 'text-amber-600 bg-amber-50',
+  in_progress: 'text-blue-600 bg-blue-50',
+  completed: 'text-emerald-600 bg-emerald-50',
+  not_required: 'text-slate-500 bg-slate-100',
+};
+
 // =========================================================================
 // PATIENT DETAIL -- real vitals + real prediction, one patient at a time.
 // Its own component so the per-patient hooks stay unconditional.
 // =========================================================================
-function PatientDetail({ patient, deviceLabel, onClose }: {
-  patient: Patient; deviceLabel: string | null; onClose: () => void;
+function PatientDetail({ patient, deviceLabel, canFollowUp, staffNameById, onClose }: {
+  patient: Patient; deviceLabel: string | null;
+  canFollowUp: boolean; staffNameById: Map<string, string>;
+  onClose: () => void;
 }) {
   const vitals = useLatestVitalsQuery(patient.patient_id);
   const prediction = useAIPredictionQuery(patient.patient_id);
+  const followUp = useUpdateFollowUpMutation(patient.patient_id);
+
+  const [status, setStatus] = useState<FollowUpStatus>('pending');
+  const [note, setNote] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const predictionId = prediction.data?.prediction_id;
+  // Seed from the record only when the prediction itself changes. This query polls every
+  // 15s, so syncing on every data change would wipe a note while it is being typed.
+  useEffect(() => {
+    if (!prediction.data) return;
+    setStatus(prediction.data.follow_up_status ?? 'pending');
+    setNote(prediction.data.clinician_note ?? '');
+    setSaveError('');
+    setSaved(false);
+  }, [predictionId]);
+
+  const saveFollowUp = async () => {
+    if (!predictionId) return;
+    setSaveError('');
+    try {
+      await followUp.mutateAsync({ predictionId, follow_up_status: status, clinician_note: note });
+      setSaved(true);
+    } catch (err) {
+      setSaveError(parseAPIError(err));
+    }
+  };
 
   const riskTone: Record<string, string> = {
     critical: 'text-red-600 bg-red-50',
@@ -318,6 +368,73 @@ function PatientDetail({ patient, deviceLabel, onClose }: {
                   {prediction.data.recommendation}
                 </p>
               )}
+
+              {/* ---- Follow-up: what a clinician is doing about this result ---- */}
+              <div className="border-t border-slate-200 pt-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                    Follow-up
+                  </span>
+                  <span className={`font-bold text-[10px] uppercase px-2 py-0.5 rounded-md ${followUpTone[prediction.data.follow_up_status] || followUpTone.pending}`}>
+                    {FOLLOW_UP_LABEL[prediction.data.follow_up_status] ?? prediction.data.follow_up_status}
+                  </span>
+                </div>
+
+                {prediction.data.follow_up_at && (
+                  <p className="text-[10px] text-slate-400">
+                    Last updated by {staffNameById.get(prediction.data.follow_up_by ?? '') ?? 'a clinician'}
+                    {' • '}{formatDateTime(prediction.data.follow_up_at)}
+                  </p>
+                )}
+
+                {canFollowUp ? (
+                  <>
+                    <select
+                      className={inputClass}
+                      value={status}
+                      onChange={e => { setStatus(e.target.value as FollowUpStatus); setSaved(false); }}
+                    >
+                      {FOLLOW_UP_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <textarea
+                      className={`${inputClass} min-h-[80px] resize-y`}
+                      placeholder="Clinician note — what was done, or what to watch for."
+                      maxLength={2000}
+                      value={note}
+                      onChange={e => { setNote(e.target.value); setSaved(false); }}
+                    />
+                    {saveError && (
+                      <div className="p-2.5 bg-red-50 border border-red-200 text-red-600 text-[11px] rounded-lg font-medium">
+                        {saveError}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={saveFollowUp}
+                        disabled={followUp.isPending}
+                        className="bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all"
+                      >
+                        {followUp.isPending ? 'Saving...' : 'Save Follow-up'}
+                      </button>
+                      {saved && !followUp.isPending && (
+                        <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 ml-auto">{note.length}/2000</span>
+                    </div>
+                  </>
+                ) : prediction.data.clinician_note ? (
+                  <p className="text-xs text-slate-700 leading-relaxed bg-white border border-slate-200 rounded-lg p-3">
+                    {prediction.data.clinician_note}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-400">No clinician note recorded.</p>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-xs text-slate-500 py-4">No prediction generated for this patient yet.</p>
@@ -345,7 +462,8 @@ function PatientDetail({ patient, deviceLabel, onClose }: {
 function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [openForm, setOpenForm] = useState<null | 'patient' | 'staff' | 'device' | 'ward' | 'hospital' | 'pair'>(null);
+  const [editPatientId, setEditPatientId] = useState<string | null>(null);
+  const [openForm, setOpenForm] = useState<null | 'patient' | 'staff' | 'doctor' | 'device' | 'ward' | 'hospital' | 'pair'>(null);
   const [formError, setFormError] = useState('');
   const [toast, setToast] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
@@ -363,6 +481,7 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   // ---- Mutations --------------------------------------------------------
   const createPatient = useCreatePatientMutation();
+  const updatePatient = useUpdatePatientMutation();
   const createStaff = useCreateStaffMutation();
   const registerDevice = useRegisterDeviceMutation();
   const createWard = useCreateWardMutation();
@@ -385,7 +504,8 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const closeForm = () => { setOpenForm(null); setFormError(''); };
+  // Also clears the edit target so submit()'s shared success path closes the edit dialog too.
+  const closeForm = () => { setOpenForm(null); setEditPatientId(null); setFormError(''); };
 
   /** Every create flow funnels through here so errors and toasts behave identically. */
   const submit = async (run: () => Promise<unknown>, okMessage: string) => {
@@ -405,6 +525,21 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
     () => new Map(assignmentList.map(a => [a.device_id, a])),
     [assignmentList]
   );
+  /**
+   * Sidebar shortcut to the patient dialog. The dialog is per-patient, so it opens the
+   * one already in focus and otherwise falls back to the first on the ward -- reaching
+   * it used to mean Patients tab -> find the card -> Open Telemetry.
+   */
+  const openPatientDialog = () => {
+    if (patientList.length === 0) {
+      setActiveTab('patients');
+      setToast({ tone: 'err', text: 'No patients admitted yet.' });
+      return;
+    }
+    const stillOnWard = patientList.some(p => p.patient_id === selectedPatientId);
+    setSelectedPatientId(stillOnWard ? selectedPatientId : patientList[0].patient_id);
+  };
+
   const patientNameById = useMemo(
     () => new Map(patientList.map(p => [p.patient_id, p.name])),
     [patientList]
@@ -420,6 +555,19 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
   const onlineDevices = deviceList.filter(d => d.status === 'online').length;
   const criticalAlerts = alertList.filter(a => a.alert_type === 'critical').length;
   const clinicalStaff = userList.filter(u => u.role === 'doctor' || u.role === 'nurse').length;
+
+  // /users is already scoped to the caller's hospital server-side, so filtering by role
+  // here is the whole "doctors under this hospital" query -- no extra request needed.
+  const doctorList = userList.filter(u => u.role === 'doctor');
+
+  // Mirrors RequireRole(["admin","doctor","nurse"]) on the patients endpoints -- an
+  // attendant would only get a 403, so the control is hidden rather than shown broken.
+  const canEditPatients = ['admin', 'doctor', 'nurse'].includes(user.role);
+  const staffNameById = useMemo(
+    () => new Map(userList.map(u => [u.user_id, u.name])),
+    [userList]
+  );
+  const editingPatient = patientList.find(p => p.patient_id === editPatientId);
 
   const staffOptions = (role: UserRole) =>
     userList.filter(u => u.role === role).map(u => ({ value: u.user_id, label: u.name }));
@@ -466,6 +614,26 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
                   </button>
                 );
               })}
+
+              {/* Opens the per-patient modal, so it is an action rather than a tab --
+                  giving it a NAV id would select a tab with no panel behind it. */}
+              {group === 'Clinical' && (
+                <button
+                  onClick={openPatientDialog}
+                  disabled={patients.isLoading}
+                  title={
+                    patientList.length === 0
+                      ? 'No patients admitted yet'
+                      : `Open ${patientNameById.get(selectedPatientId ?? '') ?? patientList[0].name}`
+                  }
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3">
+                    <UserIcon className="h-5 w-5 text-slate-400" />
+                    <span>Patient Dialog</span>
+                  </span>
+                </button>
+              )}
             </div>
           ))}
         </nav>
@@ -669,12 +837,24 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
                               : 'No device paired'}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setSelectedPatientId(patient.patient_id)}
-                          className="w-full bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-bold text-xs py-2.5 rounded-xl transition-all mt-4"
-                        >
-                          Open Telemetry
-                        </button>
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => setSelectedPatientId(patient.patient_id)}
+                            className="flex-1 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-bold text-xs py-2.5 rounded-xl transition-all"
+                          >
+                            Open Telemetry
+                          </button>
+                          {canEditPatients && (
+                            <button
+                              onClick={() => setEditPatientId(patient.patient_id)}
+                              title={`Edit ${patient.name}`}
+                              aria-label={`Edit ${patient.name}`}
+                              className="px-3 bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-600 font-bold text-xs rounded-xl transition-all flex items-center justify-center"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -900,6 +1080,61 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
               ) : (
                 <Empty icon={<Building2 className="h-12 w-12" />} title="Hospital unavailable" hint="Could not load your hospital record." />
               )}
+
+              {/* ---- Doctors belonging to this hospital ---- */}
+              <div className="border-t border-slate-100 pt-5">
+                <div className="flex items-baseline justify-between mb-4">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Stethoscope className="h-4 w-4 text-slate-400" />
+                    Doctors
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-slate-400 font-semibold">
+                      {doctorList.length} {doctorList.length === 1 ? 'doctor' : 'doctors'}
+                    </span>
+                    {isAdmin && <AddButton onClick={() => setOpenForm('doctor')} label="Add Doctor" />}
+                  </div>
+                </div>
+
+                {users.isLoading ? <Spinner /> : doctorList.length === 0 ? (
+                  <Empty
+                    icon={<Stethoscope className="h-12 w-12" />}
+                    title="No doctors in this hospital"
+                    hint="Add a doctor from the Staff tab, or share the hospital code so they can self-register."
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {doctorList.map(d => {
+                      const caseload = patientList.filter(p => p.assigned_doctor_id === d.user_id).length;
+                      return (
+                        <div key={d.user_id} className="border border-slate-200/80 rounded-2xl p-5 bg-slate-50/50">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-slate-900 truncate">{d.name}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5 truncate">{d.email}</p>
+                            </div>
+                            <Badge tone={d.is_active ? 'green' : 'slate'}>
+                              {d.is_active ? 'active' : 'inactive'}
+                            </Badge>
+                          </div>
+
+                          <p className="text-xs text-slate-500 mt-3 capitalize">
+                            {d.department || 'No department set'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            {d.license_number ? `Licence ${d.license_number}` : 'Licence not recorded'}
+                          </p>
+
+                          <p className="text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-200/70">
+                            {caseload} {caseload === 1 ? 'patient' : 'patients'} assigned
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <p className="text-[11px] text-slate-400 border-t border-slate-100 pt-4">
                 The API scopes every record to one hospital, so this page shows yours only. Creating a
                 hospital sets up a separate tenant — you stay assigned to this one, so hand the new code
@@ -975,6 +1210,51 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
         />
       )}
 
+      {/* Edit uses its own state, not openForm, because the dialog needs to know WHICH
+          patient it is editing in order to prefill. */}
+      {editingPatient && (
+        <FormModal
+          title="Edit Patient" subtitle={`Update the record for ${editingPatient.name}.`}
+          icon={<Users className="h-6 w-6" />} submitLabel="Save Changes"
+          pending={updatePatient.isPending} error={formError} onClose={closeForm}
+          initial={{
+            name: editingPatient.name ?? '',
+            age: editingPatient.age != null ? String(editingPatient.age) : '',
+            gender: editingPatient.gender ?? '',
+            ventilator_status: editingPatient.ventilator_status ?? '',
+            bed_number: editingPatient.bed_number ?? '',
+            ward_id: editingPatient.ward_id ?? '',
+            assigned_doctor_id: editingPatient.assigned_doctor_id ?? '',
+            assigned_nurse_id: editingPatient.assigned_nurse_id ?? '',
+          }}
+          fields={[
+            { name: 'name', label: 'Full Name', required: true },
+            { name: 'age', label: 'Age', type: 'number', required: true },
+            { name: 'gender', label: 'Gender', type: 'select', required: true,
+              options: [{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }] },
+            { name: 'ventilator_status', label: 'Ventilator Status', type: 'select', required: true,
+              options: [{ value: 'active', label: 'Active' }, { value: 'weaning', label: 'Weaning' }, { value: 'off', label: 'Off' }] },
+            { name: 'bed_number', label: 'Bed Number', placeholder: 'e.g. 12' },
+            { name: 'ward_id', label: 'Ward', type: 'select', options: wardList.map(w => ({ value: w.ward_id, label: w.name })) },
+            { name: 'assigned_doctor_id', label: 'Assigned Doctor', type: 'select', options: staffOptions('doctor') },
+            { name: 'assigned_nurse_id', label: 'Assigned Nurse', type: 'select', options: staffOptions('nurse') },
+          ]}
+          onSubmit={v => submit(() => updatePatient.mutateAsync({
+            patientId: editingPatient.patient_id,
+            // Empty means "left blank", not "clear it" -- the server skips absent keys,
+            // so an untouched optional field keeps whatever it already had.
+            name: v.name || undefined,
+            age: v.age ? Number(v.age) : undefined,
+            gender: v.gender || undefined,
+            ventilator_status: (v.ventilator_status || undefined) as Patient['ventilator_status'] | undefined,
+            bed_number: v.bed_number || undefined,
+            ward_id: v.ward_id || undefined,
+            assigned_doctor_id: v.assigned_doctor_id || undefined,
+            assigned_nurse_id: v.assigned_nurse_id || undefined,
+          }), 'Patient details updated.')}
+        />
+      )}
+
       {openForm === 'staff' && (
         <FormModal
           title="Add Staff" subtitle="Creates a confirmed account that can sign in immediately."
@@ -992,6 +1272,24 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
           onSubmit={v => submit(() => createStaff.mutateAsync({
             name: v.name, email: v.email, password: v.password, role: v.role as UserRole,
           }), 'Staff account created.')}
+        />
+      )}
+
+      {/* Same endpoint as Add Staff, with the role pinned -- this form is reached from the
+          hospital's Doctors list, so making the admin re-pick "Doctor" is a way to get it wrong. */}
+      {openForm === 'doctor' && (
+        <FormModal
+          title="Add Doctor" subtitle={`Creates a confirmed doctor account in ${hospital.data?.name ?? 'this hospital'}.`}
+          icon={<Stethoscope className="h-6 w-6" />} submitLabel="Create Doctor"
+          pending={createStaff.isPending} error={formError} onClose={closeForm}
+          fields={[
+            { name: 'name', label: 'Full Name', required: true },
+            { name: 'email', label: 'Email', type: 'email', required: true },
+            { name: 'password', label: 'Temporary Password', type: 'password', required: true, hint: 'Minimum 8 characters.' },
+          ]}
+          onSubmit={v => submit(() => createStaff.mutateAsync({
+            name: v.name, email: v.email, password: v.password, role: 'doctor',
+          }), 'Doctor account created.')}
         />
       )}
 
@@ -1088,6 +1386,8 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
             if (!a) return null;
             return deviceList.find(d => d.device_id === a.device_id)?.mac_address ?? 'Unknown device';
           })()}
+          canFollowUp={canEditPatients}
+          staffNameById={staffNameById}
           onClose={() => setSelectedPatientId(null)}
         />
       )}

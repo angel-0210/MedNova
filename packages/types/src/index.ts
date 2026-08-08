@@ -85,6 +85,9 @@ export interface SensorReading {
   temperature: number;
 }
 
+/** Clinician follow-up on an AI result. Mirrors the CHECK constraint on ai_predictions. */
+export type FollowUpStatus = 'pending' | 'in_progress' | 'completed' | 'not_required';
+
 export interface AIPrediction {
   prediction_id: string;
   hospital_id: string;
@@ -94,6 +97,11 @@ export interface AIPrediction {
   confidence: number;
   recommendation?: string;
   model_version: string;
+  follow_up_status: FollowUpStatus;
+  clinician_note?: string;
+  /** user_id of whoever last changed the follow-up. */
+  follow_up_by?: string;
+  follow_up_at?: string;
   created_at: string;
   updated_at: string;
 }

@@ -28,7 +28,7 @@ from app.schemas.entities import (
     PatientCreate, PatientUpdate, PatientResponse,
     DeviceCreate, DeviceUpdate, DeviceResponse,
     DeviceAssignmentCreate, DeviceAssignmentResponse,
-    SensorReadingResponse, AIPredictionResponse, 
+    SensorReadingResponse, AIPredictionResponse, PredictionFollowUpUpdate,
     AlertResponse, AuditLogResponse
 )
 from app.services.alert_service import AlertService
@@ -293,6 +293,38 @@ async def get_patient(
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
 
+@patient_router.patch("/{patient_id}", response_model=PatientResponse)
+async def update_patient(
+    patient_id: uuid.UUID,
+    payload: PatientUpdate,
+    request: Request,
+    current_user: User = Depends(RequireRole(["admin", "doctor", "nurse"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Edits patient details. PatientUpdate already existed and was imported but had no
+    route, so the admin panel could create patients and never correct them.
+    """
+    patient_repo = PatientRepository(db)
+    # Scope the lookup by hospital so one tenant cannot edit another's patient by id.
+    patient = await patient_repo.get_by_id(patient_id, hospital_id=current_user.hospital_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    updated = await patient_repo.update(patient, payload)
+
+    audit_service = AuditService(db)
+    client_ip = request.client.host if request.client else "unknown"
+    await audit_service.log_action(
+        hospital_id=current_user.hospital_id,
+        user_id=current_user.user_id,
+        action="UPDATE_PATIENT",
+        entity_name="patients",
+        entity_id=str(patient_id),
+        ip_address=client_ip
+    )
+    return updated
+
 
 # =========================================================================
 # DEVICES ENDPOINTS
@@ -451,6 +483,51 @@ async def get_latest_prediction(
     prediction = await prediction_repo.get_latest_for_patient(patient_id)
     if not prediction:
         raise HTTPException(status_code=404, detail="No predictions found for this patient")
+    return prediction
+
+
+@prediction_router.patch("/{prediction_id}/follow-up", response_model=AIPredictionResponse)
+async def update_prediction_follow_up(
+    prediction_id: uuid.UUID,
+    payload: PredictionFollowUpUpdate,
+    request: Request,
+    current_user: User = Depends(RequireRole(["admin", "doctor", "nurse"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Records the clinician follow-up on an AI result: what is being done about it and
+    a free-text note. Attendants are excluded -- this is a clinical decision record.
+    """
+    prediction_repo = AIPredictionRepository(db)
+    prediction = await prediction_repo.get_by_id(prediction_id, hospital_id=current_user.hospital_id)
+    if not prediction:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+
+    if payload.follow_up_status is None and payload.clinician_note is None:
+        raise HTTPException(status_code=400, detail="Provide follow_up_status, clinician_note, or both")
+
+    if payload.follow_up_status is not None:
+        prediction.follow_up_status = payload.follow_up_status
+    if payload.clinician_note is not None:
+        # An empty string is a deliberate "clear the note"; the generic repo update
+        # skips falsy values, so this is set directly.
+        prediction.clinician_note = payload.clinician_note or None
+
+    # Stamp authorship every time, so the record always says who last touched it.
+    prediction.follow_up_by = current_user.user_id
+    prediction.follow_up_at = datetime.utcnow()
+    await db.flush()
+
+    audit_service = AuditService(db)
+    client_ip = request.client.host if request.client else "unknown"
+    await audit_service.log_action(
+        hospital_id=current_user.hospital_id,
+        user_id=current_user.user_id,
+        action="UPDATE_PREDICTION_FOLLOW_UP",
+        entity_name="ai_predictions",
+        entity_id=str(prediction_id),
+        ip_address=client_ip
+    )
     return prediction
 
 

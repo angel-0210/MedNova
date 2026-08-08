@@ -158,6 +158,11 @@ class AIPrediction(Base):
     confidence: Mapped[float] = mapped_column(Numeric, nullable=False)
     recommendation: Mapped[Optional[str]] = mapped_column(Text)
     model_version: Mapped[str] = mapped_column(String, nullable=False)
+    # Clinician follow-up on this result: pending, in_progress, completed, not_required
+    follow_up_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    clinician_note: Mapped[Optional[str]] = mapped_column(Text)
+    follow_up_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="SET NULL"))
+    follow_up_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
