@@ -15,7 +15,9 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/<PROJECT_ID>"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.mednova"
     },
@@ -35,7 +37,10 @@
     "extra": {
       "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_API_URL}",
       "EXPO_PUBLIC_SUPABASE_URL": "${EXPO_PUBLIC_SUPABASE_URL}",
-      "EXPO_PUBLIC_SUPABASE_KEY": "${EXPO_PUBLIC_SUPABASE_KEY}"
+      "EXPO_PUBLIC_SUPABASE_KEY": "${EXPO_PUBLIC_SUPABASE_KEY}",
+      "eas": {
+        "projectId": "74514d67-8a28-4050-be63-5950662a371e"
+      }
     }
   }
 }

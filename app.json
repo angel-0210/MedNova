@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "74514d67-8a28-4050-be63-5950662a371e"
+      }
+    },
+    "android": {
+      "package": "com.manmeet11783.mednova"
+    }
+  }
+}
