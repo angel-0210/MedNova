@@ -28,6 +28,19 @@ export const USER_ROLES = {
   ATTENDANT: 'attendant' as const,
 };
 
+/**
+ * Clinician follow-up on an AI result. The keys mirror the CHECK constraint on
+ * ai_predictions.follow_up_status -- change one, change the other.
+ */
+export const FOLLOW_UP_STATUSES = ['pending', 'in_progress', 'completed', 'not_required'] as const;
+
+export const FOLLOW_UP_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  not_required: 'Not Required',
+};
+
 export const API_TIMEOUT = 10000;
 
 export const DEFAULT_POLLING_INTERVAL = 3000; // 3 seconds for live dashboard telemetry

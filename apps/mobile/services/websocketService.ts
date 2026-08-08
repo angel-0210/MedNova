@@ -6,14 +6,17 @@ import { BASE_WS_URL } from '../config/apiConfig';
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private isIntentionalDisconnect = false;
   private queryClient: QueryClient | null = null;
 
   public async connect(queryClient: QueryClient) {
     this.queryClient = queryClient;
+
+    // One socket per app, not per mount. The dashboard calls connect() from more than one
+    // effect, so without this every mount opened a second socket and doubled the log spam.
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) return;
+
     const accessToken = await secureStoreService.getAccessToken();
     if (!accessToken) {
       console.warn('[WebSocket] Cannot connect: No access token available');
@@ -24,13 +27,13 @@ class WebSocketService {
 
     // Use the shared BASE_WS_URL (already converted from http→ws by apiConfig)
     const wsUrl = `${BASE_WS_URL}/ws/dashboard?token=${accessToken}`;
-    console.log('[WebSocket] Connecting to:', wsUrl);
+    // Never log wsUrl itself -- the access token rides in the query string.
+    console.log('[WebSocket] Connecting to:', `${BASE_WS_URL}/ws/dashboard`);
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
       console.log('[WebSocket] Connection established');
       this.reconnectAttempts = 0;
-      this.reconnectDelay = 1000;
       this.startHeartbeat();
     };
 
@@ -96,8 +99,10 @@ class WebSocketService {
       }
     };
 
-    this.ws.onerror = (error) => {
-      console.error('[WebSocket] Connection error:', error);
+    this.ws.onerror = () => {
+      // Logging the event dumps its target socket -- including the tokenised URL -- and
+      // React Native renders that as a full-screen error. onclose already reports the reason.
+      console.warn('[WebSocket] Connection failed:', BASE_WS_URL);
     };
 
     this.ws.onclose = (event) => {
@@ -134,21 +139,17 @@ class WebSocketService {
     }
   }
 
+  /** Exponential backoff capped at 30s, forever. A ward monitor that stops retrying after
+   *  five tries is dead until someone restarts the app -- the cap on delay is the real fix. */
   private attemptReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[WebSocket] Max reconnect attempts reached.');
-      return;
-    }
     this.reconnectAttempts++;
-    console.log(
-      `[WebSocket] Reconnecting in ${this.reconnectDelay}ms (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
-    );
+    const delay = Math.min(1000 * 2 ** (this.reconnectAttempts - 1), 30_000);
+    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
     setTimeout(() => {
-      if (this.queryClient) {
+      if (this.queryClient && !this.isIntentionalDisconnect) {
         this.connect(this.queryClient);
       }
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30_000);
-    }, this.reconnectDelay);
+    }, delay);
   }
 }
 

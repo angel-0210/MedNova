@@ -12,6 +12,7 @@ import {
 } from '@mednova/hooks';
 import { Brain, Sparkles, RefreshCw, ChevronRight, Activity, TrendingUp, Info } from 'lucide-react-native';
 import Svg, { Path, Line } from 'react-native-svg';
+import { FOLLOW_UP_LABELS } from '@mednova/constants';
 import { theme } from '../../../constants/theme';
 
 export default function PredictionsScreen() {
@@ -177,6 +178,17 @@ export default function PredictionsScreen() {
                     <Text style={styles.confidenceLbl}>Model Confidence Margin:</Text>
                     <Text style={styles.confidenceVal}>{Math.round(prediction.confidence * 100)}%</Text>
                   </View>
+                  {/* Follow-up is recorded in the admin panel; shown here so the bedside
+                      view says whether anyone has acted on this result. */}
+                  <View style={styles.followUpRow}>
+                    <Text style={styles.confidenceLbl}>Follow-up:</Text>
+                    <Text style={styles.confidenceVal}>
+                      {FOLLOW_UP_LABELS[prediction.follow_up_status] ?? 'Pending'}
+                    </Text>
+                  </View>
+                  {!!prediction.clinician_note && (
+                    <Text style={styles.clinicianNote}>{prediction.clinician_note}</Text>
+                  )}
                 </View>
               )}
 
@@ -396,6 +408,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
     paddingTop: 8,
+  },
+  followUpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  clinicianNote: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   confidenceLbl: {
     color: 'rgba(255,255,255,0.6)',

@@ -42,14 +42,6 @@ export default function DashboardScreen() {
   
   const [isFrozen, setIsFrozen] = React.useState(false);
 
-  // Connect WebSocket for real-time telemetry and alert updates
-  useEffect(() => {
-    websocketService.connect(queryClient);
-    return () => {
-      websocketService.disconnect();
-    };
-  }, [queryClient]);
-
   const activeVentilators = patients.filter((p) => p.ventilator_status === 'active').length;
   const pendingAlerts     = alerts.filter((a) => a.status === 'pending').length;
   const criticalAlerts    = alerts.filter((a) => a.alert_type === 'critical').length;

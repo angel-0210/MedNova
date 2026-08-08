@@ -171,7 +171,17 @@ async def login(
     except MedNovaException:
         raise
     except Exception as e:
-        logger.warn("Login attempt failed", email=payload.email, error=str(e))
+        # Supabase answers "Email not confirmed" when an account never clicked its
+        # confirmation link. Collapsing that into "Invalid email or password" sent people
+        # hunting for a password problem that did not exist -- it is the one auth failure
+        # the user can actually act on, so it gets its own code.
+        reason = str(e)
+        logger.warn("Login attempt failed", email=payload.email, error=reason)
+        if "email not confirmed" in reason.lower():
+            raise UnauthorizedException(
+                "Email address is not confirmed. Check your inbox for the confirmation link.",
+                "EMAIL_NOT_CONFIRMED"
+            )
         raise InvalidCredentialsException("Invalid email or password")
 
 

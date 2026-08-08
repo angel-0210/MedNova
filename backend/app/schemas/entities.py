@@ -1,12 +1,16 @@
 import uuid
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Literal
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel, Field, EmailStr, field_validator
 import re
 
 # MAC Address pattern check helper
 MAC_REGEX = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$")
+
+# Clinician follow-up on an AI result. Mirrors the CHECK constraint on
+# ai_predictions.follow_up_status -- keep the two in step.
+FollowUpStatus = Literal["pending", "in_progress", "completed", "not_required"]
 
 # =========================================================================
 # HOSPITAL SCHEMAS
@@ -240,6 +244,10 @@ class AIPredictionResponse(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     recommendation: Optional[str]
     model_version: str
+    follow_up_status: FollowUpStatus = "pending"
+    clinician_note: Optional[str] = None
+    follow_up_by: Optional[uuid.UUID] = None
+    follow_up_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -247,6 +255,13 @@ class AIPredictionResponse(BaseModel):
         "from_attributes": True,
         "protected_namespaces": ()
     }
+
+
+class PredictionFollowUpUpdate(BaseModel):
+    """Clinician follow-up on a prediction. Both fields optional so a note can be
+    added without changing the status, and vice versa."""
+    follow_up_status: Optional[FollowUpStatus] = None
+    clinician_note: Optional[str] = Field(None, max_length=2000)
 
 
 # =========================================================================

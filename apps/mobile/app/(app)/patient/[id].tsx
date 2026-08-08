@@ -18,6 +18,7 @@ import {
 } from 'lucide-react-native';
 import { formatDateTime } from '@mednova/utils';
 import { doctorRepository } from '@mednova/api';
+import { FOLLOW_UP_LABELS } from '@mednova/constants';
 import { theme } from '../../../constants/theme';
 import { useRBAC } from '../../../contexts/RBACContext';
 
@@ -169,6 +170,12 @@ export default function PatientDetailsScreen() {
             </View>
             <Text style={[styles.summaryCardVal, { color: riskColor }]}>{riskLabel}</Text>
             <Text style={styles.summaryCardDesc} numberOfLines={1}>{prediction?.recommendation || 'Weaning readiness optimal'}</Text>
+            {!!prediction && (
+              <Text style={styles.summaryCardFollowUp} numberOfLines={2}>
+                Follow-up: {FOLLOW_UP_LABELS[prediction.follow_up_status] ?? 'Pending'}
+                {prediction.clinician_note ? ` — ${prediction.clinician_note}` : ''}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -460,6 +467,7 @@ const styles = StyleSheet.create({
   summaryCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   summaryCardVal: { fontSize: 16, fontWeight: '800' },
   summaryCardDesc: { fontSize: 10, color: theme.colors.outline, marginTop: 4 },
+  summaryCardFollowUp: { fontSize: 9, color: theme.colors.onSurfaceVariant, marginTop: 4, fontWeight: '600' },
   quickActionCard: { marginHorizontal: 16, padding: 12, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: theme.colors.outlineVariant, marginBottom: 12 },
   quickActionTitle: { fontSize: 10, marginBottom: 8, fontWeight: '700' },
   actionsGrid: { flexDirection: 'row', gap: 8 },

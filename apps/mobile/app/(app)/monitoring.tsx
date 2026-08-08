@@ -17,6 +17,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { secureStoreService } from '../../services/secureStoreService';
 import { BASE_WS_URL } from '../../config/apiConfig';
+import { FOLLOW_UP_LABELS } from '@mednova/constants';
 import { theme } from '../../constants/theme';
 
 export default function LiveMonitoringScreen() {
@@ -366,6 +367,12 @@ export default function LiveMonitoringScreen() {
                 <Text style={styles.aiText}>
                   Risk evaluation: {riskLabel}. Recommended action: {prediction?.recommendation || 'Patient values within bounds.'}
                 </Text>
+                {prediction && (
+                  <Text style={styles.aiFollowUp}>
+                    Follow-up: {FOLLOW_UP_LABELS[prediction.follow_up_status] ?? 'Pending'}
+                    {prediction.clinician_note ? ` — ${prediction.clinician_note}` : ''}
+                  </Text>
+                )}
               </View>
 
               {/* Quick Actions Panel */}
@@ -457,6 +464,7 @@ const styles = StyleSheet.create({
   aiCard: { borderRadius: 20, padding: 16 },
   aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   aiText: { color: '#ffffff', fontSize: 13, lineHeight: 20 },
+  aiFollowUp: { color: 'rgba(255,255,255,0.75)', fontSize: 11, lineHeight: 16, marginTop: 8 },
   actionsGrid: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   actionGridBtn: {
     flex: 1, minWidth: '45%', height: 48, borderRadius: 16, backgroundColor: '#ffffff',
