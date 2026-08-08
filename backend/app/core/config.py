@@ -41,6 +41,13 @@ class Settings(BaseModel):
     AI_MODEL_PATH: str = os.getenv("AI_MODEL_PATH", "app/ai/models/ventilator_risk_v1.tflite")
     AI_MODEL_VERSION: str = "ventilator_risk_v1.0"
 
+    # Gemini -- narrative summaries for patient reports. Optional: without a key the
+    # report service falls back to a deterministic template, so reports never hard-fail.
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    # A flash model keeps report generation inside the request instead of a job queue.
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_TIMEOUT_SECONDS: float = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "12"))
+
     class Config:
         arbitrary_types_allowed = True
 

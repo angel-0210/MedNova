@@ -40,6 +40,12 @@ export const useUpdatePatientMutation = () => {
   });
 };
 
+export const useGeneratePatientReportMutation = () => {
+  return useMutation({
+    mutationFn: (patientId: string) => patientRepository.generateReport(patientId),
+  });
+};
+
 export const usePatientDetailsQuery = (patientId: string) => {
   return useQuery({
     queryKey: ['patient', patientId],

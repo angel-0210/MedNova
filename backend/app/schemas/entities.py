@@ -257,6 +257,20 @@ class AIPredictionResponse(BaseModel):
     }
 
 
+class PatientReportResponse(BaseModel):
+    """Downloadable patient summary. `markdown` is the document the client saves."""
+    patient_id: str
+    patient_name: str
+    generated_at: datetime
+    narrative_source: str
+    risk_level: Optional[str] = None
+    risk_score: Optional[int] = None
+    summary: str
+    next_steps: List[str]
+    disclaimer: str
+    markdown: str
+
+
 class PredictionFollowUpUpdate(BaseModel):
     """Clinician follow-up on a prediction. Both fields optional so a note can be
     added without changing the status, and vice versa."""

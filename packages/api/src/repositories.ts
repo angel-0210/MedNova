@@ -1,6 +1,6 @@
 import { apiClient } from './client.js';
 import {
-  User, UserRole, Patient, SensorReading, AIPrediction, FollowUpStatus,
+  User, UserRole, Patient, SensorReading, AIPrediction, FollowUpStatus, PatientReport,
   Alert, Device, DeviceAssignment, Hospital, Ward, AuditLog
 } from '@mednova/types';
 
@@ -82,6 +82,12 @@ export const patientRepository = {
 
   async createPatient(payload: Omit<Patient, 'patient_id' | 'admission_date' | 'created_at' | 'updated_at'>): Promise<Patient> {
     const response = await apiClient.post('/api/v1/patients', payload);
+    return response.data;
+  },
+
+  /** Builds a downloadable summary from the patient's existing record. */
+  async generateReport(patientId: string): Promise<PatientReport> {
+    const response = await apiClient.post(`/api/v1/patients/${patientId}/report`);
     return response.data;
   },
 

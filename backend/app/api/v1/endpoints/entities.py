@@ -12,7 +12,7 @@ from app.database.session import get_db
 from app.database.models import (
     User, Hospital, Ward, Patient, Device, 
     DeviceAssignment, SensorReading, AIPrediction, 
-    Alert, AuditLog
+    Alert, AuditLog, Report
 )
 from app.database.repositories.entities import (
     HospitalRepository, WardRepository, UserRepository,
@@ -29,10 +29,12 @@ from app.schemas.entities import (
     DeviceCreate, DeviceUpdate, DeviceResponse,
     DeviceAssignmentCreate, DeviceAssignmentResponse,
     SensorReadingResponse, AIPredictionResponse, PredictionFollowUpUpdate,
+    PatientReportResponse,
     AlertResponse, AuditLogResponse
 )
 from app.services.alert_service import AlertService
 from app.services.audit_service import AuditService
+from app.services.report_service import generate_patient_report
 
 # Define APIRouters
 hospital_router = APIRouter()
@@ -484,6 +486,48 @@ async def get_latest_prediction(
     if not prediction:
         raise HTTPException(status_code=404, detail="No predictions found for this patient")
     return prediction
+
+
+@patient_router.post("/{patient_id}/report", response_model=PatientReportResponse)
+async def generate_patient_report_endpoint(
+    patient_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(RequireRole(["admin", "doctor", "nurse"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Builds a downloadable patient summary from the record already in the system:
+    observations, risk level, recommendation, follow-up, alerts and next steps.
+    """
+    patient_repo = PatientRepository(db)
+    patient = await patient_repo.get_by_id(patient_id, hospital_id=current_user.hospital_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    report = await generate_patient_report(db, patient)
+
+    # Persist so a report that was shown to a clinician can be produced again later.
+    db.add(Report(
+        hospital_id=current_user.hospital_id,
+        patient_id=patient_id,
+        doctor_id=current_user.user_id,
+        report_type="ai",
+        summary=report["summary"],
+        status="generated",
+    ))
+    await db.flush()
+
+    audit_service = AuditService(db)
+    client_ip = request.client.host if request.client else "unknown"
+    await audit_service.log_action(
+        hospital_id=current_user.hospital_id,
+        user_id=current_user.user_id,
+        action="GENERATE_PATIENT_REPORT",
+        entity_name="reports",
+        entity_id=str(patient_id),
+        ip_address=client_ip
+    )
+    return report
 
 
 @prediction_router.patch("/{prediction_id}/follow-up", response_model=AIPredictionResponse)

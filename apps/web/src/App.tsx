@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   usePatientsQuery, useCreatePatientMutation, useUpdatePatientMutation,
-  useUpdateFollowUpMutation,
+  useUpdateFollowUpMutation, useGeneratePatientReportMutation,
   useAlertsQuery, useAcknowledgeAlertMutation, useResolveAlertMutation,
   useDevicesQuery, useRegisterDeviceMutation, useAssignmentsQuery,
   usePairDeviceMutation, useUnpairDeviceMutation,
@@ -14,10 +14,10 @@ import { authRepository, setOnSessionExpired } from '@mednova/api';
 import { parseAPIError, formatDateTime } from '@mednova/utils';
 import {
   LayoutDashboard, Building2, DoorOpen, Users, Cpu, Activity, Bell,
-  ScrollText, LogOut, Plus, AlertTriangle, RefreshCw, Pencil,
+  ScrollText, LogOut, Plus, AlertTriangle, RefreshCw, Pencil, Search, Download, Sparkles,
   User as UserIcon, ShieldAlert, X, CheckCircle2, Stethoscope,
 } from 'lucide-react';
-import type { User, Patient, Device, UserRole, FollowUpStatus } from '@mednova/types';
+import type { User, Patient, Device, UserRole, FollowUpStatus, PatientReport } from '@mednova/types';
 
 // =========================================================================
 // NAVIGATION
@@ -269,6 +269,37 @@ function PatientDetail({ patient, deviceLabel, canFollowUp, staffNameById, onClo
   const vitals = useLatestVitalsQuery(patient.patient_id);
   const prediction = useAIPredictionQuery(patient.patient_id);
   const followUp = useUpdateFollowUpMutation(patient.patient_id);
+  const report = useGeneratePatientReportMutation();
+
+  const [reportData, setReportData] = useState<PatientReport | null>(null);
+  const [reportError, setReportError] = useState('');
+
+  const generateReport = async () => {
+    setReportError('');
+    try {
+      setReportData(await report.mutateAsync(patient.patient_id));
+    } catch (err) {
+      setReportError(parseAPIError(err));
+    }
+  };
+
+  /** Saves the generated markdown. Built from the in-memory report rather than a
+   *  download URL, because the endpoint needs the bearer token axios already holds. */
+  const downloadReport = () => {
+    if (!reportData) return;
+    const slug = patient.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const stamp = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(
+      new Blob([reportData.markdown], { type: 'text/markdown;charset=utf-8' })
+    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mednova-summary-${slug}-${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const [status, setStatus] = useState<FollowUpStatus>('pending');
   const [note, setNote] = useState('');
@@ -441,6 +472,78 @@ function PatientDetail({ patient, deviceLabel, canFollowUp, staffNameById, onClo
           )}
         </div>
 
+        {/* ---------------- PATIENT SUMMARY REPORT ---------------- */}
+        <div>
+          <h4 className="text-[10px] uppercase tracking-widest text-slate-400 font-bold border-b border-slate-100 pb-2 mb-3">
+            Patient Summary Report
+          </h4>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={generateReport}
+              disabled={report.isPending}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {report.isPending ? 'Generating...' : reportData ? 'Regenerate Summary' : 'Generate Patient Summary'}
+            </button>
+
+            {reportData && (
+              <button
+                type="button"
+                onClick={downloadReport}
+                className="bg-slate-900 hover:bg-slate-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download Report
+              </button>
+            )}
+          </div>
+
+          {reportError && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl font-medium">
+              {reportError}
+            </div>
+          )}
+
+          {!reportData && !report.isPending && !reportError && (
+            <p className="text-[11px] text-slate-400 mt-3">
+              Combines the recorded observations, risk level, recommendation and follow-up
+              on this record into one downloadable document.
+            </p>
+          )}
+
+          {reportData && (
+            <div className="mt-4 bg-slate-50 border border-slate-200/80 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-xs font-bold text-slate-800">Clinical Summary</span>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {reportData.narrative_source} • {formatDateTime(reportData.generated_at)}
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-700 leading-relaxed">{reportData.summary}</p>
+
+              <div className="border-t border-slate-200 pt-3">
+                <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                  Recommended Next Steps
+                </span>
+                <ol className="mt-2 space-y-1 list-decimal list-inside">
+                  {reportData.next_steps.map((step, i) => (
+                    <li key={i} className="text-xs text-slate-700 leading-relaxed">{step}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-200 pt-3 italic">
+                <AlertTriangle className="h-3 w-3 inline mr-1 -mt-0.5 text-amber-500" />
+                {reportData.disclaimer}
+              </p>
+            </div>
+          )}
+        </div>
+
         <div>
           <h4 className="text-[10px] uppercase tracking-widest text-slate-400 font-bold border-b border-slate-100 pb-2 mb-3">
             Paired Device
@@ -463,6 +566,8 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [editPatientId, setEditPatientId] = useState<string | null>(null);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [ventFilter, setVentFilter] = useState<'all' | 'active' | 'weaning' | 'off'>('all');
   const [openForm, setOpenForm] = useState<null | 'patient' | 'staff' | 'doctor' | 'device' | 'ward' | 'hospital' | 'pair'>(null);
   const [formError, setFormError] = useState('');
   const [toast, setToast] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
@@ -567,6 +672,24 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
     () => new Map(userList.map(u => [u.user_id, u.name])),
     [userList]
   );
+
+  // Search + medical filter. Filtering the already-loaded list keeps it instant and
+  // avoids a request per keystroke -- the registry polls every 10s anyway.
+  const visiblePatients = useMemo(() => {
+    const q = patientSearch.trim().toLowerCase();
+    return patientList.filter(p => {
+      if (ventFilter !== 'all' && p.ventilator_status !== ventFilter) return false;
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.bed_number ?? '').toLowerCase().includes(q) ||
+        (p.gender ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [patientList, patientSearch, ventFilter]);
+
+  const patientFiltersActive = patientSearch.trim() !== '' || ventFilter !== 'all';
+  const clearPatientFilters = () => { setPatientSearch(''); setVentFilter('all'); };
   const editingPatient = patientList.find(p => p.patient_id === editPatientId);
 
   const staffOptions = (role: UserRole) =>
@@ -808,11 +931,59 @@ function AdminPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
               description="ICU occupants, ventilator status and paired telemetry."
               action={<AddButton onClick={() => setOpenForm('patient')} label="Add Patient" />}
             >
+              {/* ---- Search + medical filter ---- */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                <div className="relative flex-1">
+                  <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="search"
+                    value={patientSearch}
+                    onChange={e => setPatientSearch(e.target.value)}
+                    placeholder="Search by name, bed number or sex..."
+                    aria-label="Search patients"
+                    className={`${inputClass} pl-9`}
+                  />
+                </div>
+                <select
+                  value={ventFilter}
+                  onChange={e => setVentFilter(e.target.value as typeof ventFilter)}
+                  aria-label="Filter by ventilator status"
+                  className={`${inputClass} sm:w-56`}
+                >
+                  <option value="all">All ventilator statuses</option>
+                  <option value="active">Ventilated — active</option>
+                  <option value="weaning">Weaning</option>
+                  <option value="off">Off ventilator</option>
+                </select>
+                {patientFiltersActive && (
+                  <button
+                    onClick={clearPatientFilters}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all whitespace-nowrap"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {patientFiltersActive && patientList.length > 0 && (
+                <p className="text-[11px] text-slate-400 font-semibold mb-4">
+                  Showing {visiblePatients.length} of {patientList.length} patients
+                </p>
+              )}
+
               {patients.isLoading ? <Spinner /> : patientList.length === 0 ? (
                 <Empty icon={<Users className="h-12 w-12" />} title="No patients yet" hint="Add your first patient to begin monitoring." />
+              ) : visiblePatients.length === 0 ? (
+                /* Distinct from the no-patients-at-all case: the ward is not empty,
+                   the filters just exclude everyone. Offer the way back. */
+                <Empty
+                  icon={<Search className="h-12 w-12" />}
+                  title="No patients match these filters"
+                  hint={`Nothing matches ${patientSearch.trim() ? `"${patientSearch.trim()}"` : 'this selection'}. Clear the filters to see all ${patientList.length} patients.`}
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {patientList.map(patient => {
+                  {visiblePatients.map(patient => {
                     const paired = assignmentList.find(a => a.patient_id === patient.patient_id);
                     return (
                       <div key={patient.patient_id} className="bg-slate-50/50 border border-slate-200/80 rounded-2xl p-5 hover:border-blue-500/40 hover:bg-white transition-all flex flex-col justify-between shadow-sm">

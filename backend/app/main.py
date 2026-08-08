@@ -48,7 +48,6 @@ async def health_check():
     Health check endpoint for container orchestration and uptime monitoring.
     """
     db_status = "disconnected"
-    db_error = None
     try:
         from sqlalchemy import text
         from app.database.session import engine
@@ -56,13 +55,13 @@ async def health_check():
             await conn.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
-        db_error = str(e)
+        # /health is unauthenticated. Driver errors carry the DSN -- host, port and
+        # username -- so the detail goes to the log, and the caller gets the state only.
         logger.error("Health check database connection failed", error=str(e))
 
     return {
         "status": "healthy",
         "database": db_status,
-        "database_error": db_error,
         "service": settings.PROJECT_NAME,
         "environment": settings.ENVIRONMENT
     }

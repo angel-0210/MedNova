@@ -85,6 +85,21 @@ export interface SensorReading {
   temperature: number;
 }
 
+/** Downloadable patient summary. `markdown` is the document the client saves to disk. */
+export interface PatientReport {
+  patient_id: string;
+  patient_name: string;
+  generated_at: string;
+  /** Which engine wrote the prose: Gemini, or the deterministic fallback. */
+  narrative_source: string;
+  risk_level?: string;
+  risk_score?: number;
+  summary: string;
+  next_steps: string[];
+  disclaimer: string;
+  markdown: string;
+}
+
 /** Clinician follow-up on an AI result. Mirrors the CHECK constraint on ai_predictions. */
 export type FollowUpStatus = 'pending' | 'in_progress' | 'completed' | 'not_required';
 

@@ -19,6 +19,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const logoutRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  // Five queries poll in parallel, so a token expiry produces a burst of 401s that each
+  // want to log out. Without this they stack up router.replace calls and the app appears
+  // to reload over and over.
+  const loggingOutRef = useRef(false);
 
   useEffect(() => {
     // Sync Axios client with SecureStore token service
@@ -37,7 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     restoreSession();
   }, []);
 
-  // Keep the ref updated so the session-expired callback always has the latest closure
+  // Keep the ref updated so the session-expired callback always has the latest closure.
+  // Deliberately no dep array: `logout` is declared below, so listing it would be a TDZ error.
   useEffect(() => {
     logoutRef.current = logout;
   });
@@ -73,6 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
     try {
       // Revoke the session on the backend (invalidates the Supabase refresh token)
       await apiClient.post('/api/v1/auth/logout').catch((e) => {
@@ -84,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await secureStoreService.clearUserProfile();
       setUser(null);
       router.replace('/login');
+      loggingOutRef.current = false;
     }
   };
 

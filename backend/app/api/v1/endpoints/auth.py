@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials
 # pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
+# pyrefly: ignore [missing-import]
+from sqlalchemy.exc import SQLAlchemyError
 # pyrefly: ignore [missing-import, missing-module-attribute]
 from supabase import create_client, Client
 from app.core.config import settings
@@ -170,6 +172,15 @@ async def login(
 
     except MedNovaException:
         raise
+    except SQLAlchemyError as e:
+        # A database outage is not a credential problem. This handler used to swallow it
+        # into "Invalid email or password", which sent two debugging sessions chasing
+        # passwords while the real fault was an unreachable database.
+        logger.exception("Login failed: database unreachable", email=payload.email, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable. Please try again shortly."
+        )
     except Exception as e:
         # Supabase answers "Email not confirmed" when an account never clicked its
         # confirmation link. Collapsing that into "Invalid email or password" sent people
