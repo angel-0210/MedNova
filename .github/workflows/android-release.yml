@@ -1,0 +1,153 @@
+name: Android APK Release
+
+# ────────────────────────────────────────────────────────────
+#  Triggers
+#  • Automatic: any version tag pushed (v*)
+#  • Manual:    workflow_dispatch with explicit version input
+# ────────────────────────────────────────────────────────────
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+# Minimum permissions needed to create a GitHub Release
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Android APK & Publish Release
+    runs-on: ubuntu-latest
+
+    # ──────────────────────────────────────────────────────
+    #  Resolve the release version
+    #  • tag push  → use github.ref_name  (e.g. "v1.0.0")
+    #  • manual    → use the workflow input
+    # ──────────────────────────────────────────────────────
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Set up Node.js ─────────────────────────────────
+      # Expo 54 / React Native 0.81 require Node >= 18.
+      # Node 22 (LTS) is the most recent stable version
+      # compatible with both the project and EAS CLI ≥ 16.
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # ── 3. Set up Java (required for Android native builds) ─
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      # ── 4. Install root-level npm dependencies ─────────────
+      # The project is a monorepo (workspaces: apps/*, packages/*).
+      # `npm ci` installs all workspace dependencies from the
+      # root package-lock.json without touching the lockfile.
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: .
+
+      # ── 5. Install EAS CLI globally ────────────────────────
+      # Pin to the minimum required by eas.json cli.version (≥ 16).
+      # Using a concrete version makes builds reproducible.
+      - name: Install EAS CLI
+        run: npm install --global eas-cli@latest
+
+      # ── 6. Authenticate with Expo ─────────────────────────
+      # EXPO_TOKEN must be stored as a GitHub Repository Secret:
+      #   Repository → Settings → Secrets and variables → Actions
+      # Never commit or print this value.
+      - name: Authenticate with Expo
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas whoami
+        working-directory: apps/mobile
+
+      # ── 7. Build Android APK via EAS ─────────────────────
+      # Profile: release-apk  →  buildType: apk, distribution: internal
+      # --wait ensures the job blocks until the remote build finishes.
+      # If the EAS build fails this step fails and no release is created.
+      - name: Build Android APK (EAS)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --platform android \
+            --profile release-apk \
+            --non-interactive \
+            --wait
+        working-directory: apps/mobile
+
+      # ── 8. Download the APK from EAS ─────────────────────
+      # `eas build:list` returns JSON; we extract the URL of the
+      # most-recently-finished android build in the release-apk profile.
+      - name: Download APK from EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          mkdir -p release
+
+          APK_URL=$(eas build:list \
+            --platform android \
+            --profile release-apk \
+            --status finished \
+            --limit 1 \
+            --non-interactive \
+            --json \
+            | jq -r '.[0].artifacts.buildUrl')
+
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "::error::Could not retrieve APK download URL from EAS."
+            exit 1
+          fi
+
+          echo "Downloading APK from: $APK_URL"
+          curl -L -o "release/MedNova-${RELEASE_VERSION}.apk" "$APK_URL"
+        working-directory: apps/mobile
+
+      # ── 9. Validate the APK ───────────────────────────────
+      # Ensure the file exists, is non-empty, and has the .apk extension.
+      - name: Validate APK
+        run: |
+          APK_PATH="apps/mobile/release/MedNova-${RELEASE_VERSION}.apk"
+
+          if [ ! -f "$APK_PATH" ]; then
+            echo "::error::APK file not found at $APK_PATH"
+            exit 1
+          fi
+
+          if [ ! -s "$APK_PATH" ]; then
+            echo "::error::APK file is empty: $APK_PATH"
+            exit 1
+          fi
+
+          FILE_SIZE=$(stat -c%s "$APK_PATH")
+          echo "APK validated: $APK_PATH (${FILE_SIZE} bytes)"
+
+      # ── 10. Create GitHub Release & attach APK ────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          name: "MedNova ${{ env.RELEASE_VERSION }}"
+          generate_release_notes: true
+          files: apps/mobile/release/MedNova-${{ env.RELEASE_VERSION }}.apk
+          fail_on_unmatched_files: true

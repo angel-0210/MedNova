@@ -42,9 +42,11 @@
       "expo-asset"
     ],
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "ad75353b-01be-4b7e-b5b7-3a3f10189bf8"
       }
-    }
+    },
+    "owner": "manmeet11783"
   }
 }
