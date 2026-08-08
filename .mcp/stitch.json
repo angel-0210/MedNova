@@ -1,0 +1,12 @@
+{
+  "project": {
+    "id": "YOUR_STITCH_PROJECT_ID",
+    "name": "MedNova",
+    "workspaceId": "YOUR_STITCH_WORKSPACE_ID",
+    "baseUrl": "https://stitch.googleapis.com"
+  },
+  "options": {
+    "debug": false,
+    "localPreviewPort": 3000
+  }
+}

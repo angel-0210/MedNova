@@ -5,8 +5,8 @@ import App from './App';
 import './index.css';
 import { setTokenStorage, apiClient } from '@mednova/api';
 
-// Configure base URL from environment or fallback
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Configure base URL from environment or fallback to production Render URL
+const API_URL = import.meta.env.VITE_API_URL || 'https://mednova-9l87.onrender.com';
 apiClient.defaults.baseURL = API_URL;
 
 // Configure Web token storage (using LocalStorage for demo)

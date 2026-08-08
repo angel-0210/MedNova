@@ -27,7 +27,11 @@ class JWKSCache:
     Refreshes keys if the key ID (kid) is not found in the cache.
     """
     def __init__(self):
-        self.jwks_url = settings.SUPABASE_JWKS_URL
+        self.jwks_url = settings.SUPABASE_JWKS_URL or (
+            f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+            if settings.SUPABASE_URL
+            else ""
+        )
         self.keys: List[Dict[str, Any]] = []
         self._last_fetched: Optional[float] = None
 

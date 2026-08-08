@@ -150,8 +150,8 @@ export const useAssignmentsQuery = () => {
 export const useRegisterDeviceMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<Device, 'device_id' | 'created_at' | 'updated_at'>) =>
-      deviceRepository.registerDevice(payload),
+    mutationFn: (payload: Omit<Device, 'device_id' | 'created_at' | 'updated_at'> & Partial<Pick<Device, 'hospital_id' | 'status' | 'mac_address'>>) =>
+      deviceRepository.registerDevice(payload as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
@@ -221,10 +221,35 @@ export const useCreateWardMutation = () => {
   });
 };
 
+export const useUsersQuery = () => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => userRepository.listUsers(),
+  });
+};
+
+export const useCreateStaffMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; email: string; password: string; role: UserRole }) =>
+      userRepository.createStaff(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+};
+
+export const useAuditLogsQuery = (enabled = true) => {
+  return useQuery({
+    queryKey: ['audit-logs'],
+    queryFn: () => auditRepository.listLogs(),
+    enabled,
+    refetchInterval: 30000,
+  });
+};
 // =========================================================================
 // DOCTOR SPECIFIC HOOKS
 // =========================================================================
-
 export const useDoctorDashboardQuery = () => {
   return useQuery({
     queryKey: ['doctor', 'dashboard'],
@@ -319,7 +344,6 @@ export const useAddPatientNoteMutation = () => {
   });
 };
 
-
 export const useLatestDoctorPredictionQuery = (patientId: string) => {
   return useQuery({
     queryKey: ['doctor', 'prediction', patientId],
@@ -346,24 +370,6 @@ export const useRefreshPredictionMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['doctor', 'prediction', patientId, 'history'] });
       queryClient.invalidateQueries({ queryKey: ['doctor', 'patient', patientId, 'timeline'] });
       queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
-    },
-  });
-};
-
-export const useUsersQuery = () => {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => userRepository.listUsers(),
-  });
-};
-
-export const useCreateStaffMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: { name: string; email: string; password: string; role: UserRole }) =>
-      userRepository.createStaff(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -422,11 +428,3 @@ export const useUpdateUserProfileMutation = () => {
   });
 };
 
-export const useAuditLogsQuery = (enabled = true) => {
-  return useQuery({
-    queryKey: ['audit-logs'],
-    queryFn: () => auditRepository.listLogs(),
-    enabled,
-    refetchInterval: 30000,
-  });
-};
