@@ -6,6 +6,9 @@ from app.core.logging import logger
 
 # SQLAlchemy 2.0 Asyncpg connection URL
 database_url = settings.DATABASE_URL
+if ":5432/" in database_url:
+    database_url = database_url.replace(":5432/", ":6543/")
+
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
