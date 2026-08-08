@@ -48,6 +48,7 @@ async def health_check():
     Health check endpoint for container orchestration and uptime monitoring.
     """
     db_status = "disconnected"
+    db_error = None
     try:
         from sqlalchemy import text
         from app.database.session import engine
@@ -55,11 +56,13 @@ async def health_check():
             await conn.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
+        db_error = str(e)
         logger.error("Health check database connection failed", error=str(e))
 
     return {
         "status": "healthy",
         "database": db_status,
+        "database_error": db_error,
         "service": settings.PROJECT_NAME,
         "environment": settings.ENVIRONMENT
     }
